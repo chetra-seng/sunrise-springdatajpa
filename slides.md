@@ -11,20 +11,20 @@ download: true
 info: |
   ## Spring Data JPA — Sunrise Java Course
 
-  Migrate a working Task Management API from in-memory storage to PostgreSQL
-  using Spring Data JPA. Learn SQL fundamentals, entity mapping, repositories,
-  and JPA relationships.
+  A comprehensive introduction to Spring Data JPA — from relational database
+  fundamentals and SQL to entity mapping, repository abstraction, and modeling
+  real-world data relationships in a Spring Boot application.
 
 keywords: Spring Data JPA, Java, PostgreSQL, Hibernate, JPA, Spring Boot, Entities, Relationships
 author: Sunrise Java Course
-description: Migrate a Task Management API to PostgreSQL using Spring Data JPA. Covers SQL fundamentals, @Entity mapping, JpaRepository, derived queries, and one-to-many/many-to-many relationships.
+description: A comprehensive introduction to Spring Data JPA — from relational database fundamentals and SQL to entity mapping, repository abstraction, and modeling real-world data relationships in a Spring Boot application.
 themeConfig:
   primary: '#6db33f'
 
 seoMeta:
   ogType: website
   ogTitle: Spring Data JPA — Sunrise Java Course
-  ogDescription: Migrate a Task API from in-memory storage to PostgreSQL with Spring Data JPA.
+  ogDescription: A comprehensive introduction to Spring Data JPA — entity mapping, repository abstraction, and real-world data relationships in Spring Boot.
   ogImage: https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&h=630&fit=crop
 
 htmlAttrs:
