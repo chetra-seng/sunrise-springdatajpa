@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360" width="600" height="360">
+  <defs>
+    <!-- Clip paths for proper intersection fills -->
+    <clipPath id="leftClip">
+      <circle cx="60" cy="70" r="50"/>
+    </clipPath>
+    <clipPath id="rightClip">
+      <circle cx="100" cy="70" r="50"/>
+    </clipPath>
+  </defs>
+
+  <!-- LEFT JOIN -->
+  <g transform="translate(100, 20)">
+    <!-- Fill left circle completely -->
+    <circle cx="60" cy="70" r="50" fill="#4FD1C5"/>
+    <!-- Fill the overlap part -->
+    <circle cx="100" cy="70" r="50" fill="#4FD1C5" clip-path="url(#leftClip)"/>
+    <!-- Draw outlines on top -->
+    <circle cx="60" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <circle cx="100" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <!-- Label -->
+    <text x="80" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Left Join</text>
+  </g>
+
+  <!-- RIGHT JOIN -->
+  <g transform="translate(360, 20)">
+    <!-- Fill right circle completely -->
+    <circle cx="100" cy="70" r="50" fill="#4FD1C5"/>
+    <!-- Fill the overlap part -->
+    <circle cx="60" cy="70" r="50" fill="#4FD1C5" clip-path="url(#rightClip)"/>
+    <!-- Draw outlines on top -->
+    <circle cx="60" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <circle cx="100" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <!-- Label -->
+    <text x="80" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Right Join</text>
+  </g>
+
+  <!-- INNER JOIN -->
+  <g transform="translate(100, 200)">
+    <!-- Only fill the intersection -->
+    <circle cx="100" cy="70" r="50" fill="#4FD1C5" clip-path="url(#leftClip)"/>
+    <!-- Draw outlines on top -->
+    <circle cx="60" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <circle cx="100" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <!-- Label -->
+    <text x="80" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Inner Join</text>
+  </g>
+
+  <!-- FULL OUTER JOIN -->
+  <g transform="translate(360, 200)">
+    <!-- Fill both circles completely -->
+    <circle cx="60" cy="70" r="50" fill="#4FD1C5"/>
+    <circle cx="100" cy="70" r="50" fill="#4FD1C5"/>
+    <!-- Draw outlines on top -->
+    <circle cx="60" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <circle cx="100" cy="70" r="50" fill="none" stroke="#2C7A7B" stroke-width="2.5"/>
+    <!-- Label -->
+    <text x="80" y="145" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Full Outer Join</text>
+  </g>
+</svg>
