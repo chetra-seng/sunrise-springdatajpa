@@ -38,7 +38,7 @@ Sunrise Java Course
 
 <div class="pt-12">
   <span class="px-2 py-1">
-    From ConcurrentHashMap to PostgreSQL — without changing your controller
+    From in-memory to production — powered by Spring Data JPA
   </span>
 </div>
 
