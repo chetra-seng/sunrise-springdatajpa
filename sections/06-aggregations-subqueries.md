@@ -135,7 +135,9 @@ Write SQL to:
 2. Get all comments for the task with id = 2, including the task title
 3. Get all projects and how many tasks each has (hint: `COUNT`, `GROUP BY`)
 
-<v-click>
+---
+
+# Practice — Answers
 
 ```sql
 -- 1.
@@ -154,5 +156,3 @@ FROM projects p
 LEFT JOIN tasks t ON t.project_id = p.id
 GROUP BY p.id, p.name;
 ```
-
-</v-click>

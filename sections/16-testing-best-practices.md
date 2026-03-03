@@ -55,6 +55,8 @@ public class Tag {
 ```
 
 ---
+zoom: 0.8
+---
 
 # Update Task.java — Add Tags
 
@@ -89,6 +91,8 @@ public class Task {
 }
 ```
 
+---
+zoom: 0.85
 ---
 
 # @JoinTable Explained
@@ -208,30 +212,41 @@ The logic is the same. JPA manages the join table automatically.
 
 # Full Entity Relationship Diagram
 
+<Transform :scale="0.45" class="text-center">
+
+```mermaid
+erDiagram
+    PROJECT ||--o{ TASK : "has many"
+    TASK ||--o{ COMMENT : "has many"
+    TASK }o--o{ TAG : "via task_tags"
+
+    PROJECT {
+        Long id
+        String name
+        String description
+        LocalDateTime createdAt
+    }
+    TASK {
+        Long id
+        String title
+        String description
+        Boolean completed
+        LocalDateTime createdAt
+        Long project_id
+    }
+    COMMENT {
+        Long id
+        String content
+        LocalDateTime createdAt
+        Long task_id
+    }
+    TAG {
+        Long id
+        String name
+    }
 ```
-┌─────────────┐  1     *  ┌──────────────────┐
-│   Project   │──────────▶│      Task        │
-│─────────────│           │──────────────────│
-│ id          │           │ id               │
-│ name        │           │ title            │
-│ description │           │ description      │
-│ createdAt   │           │ completed        │
-└─────────────┘           │ createdAt        │
-                          │ project (FK)     │
-                          └──────┬───────────┘
-                                 │ 1
-                    *            │              *
-          ┌─────────────┐        │     ┌──────────────┐
-          │   Comment   │        │     │  task_tags   │
-          │─────────────│        │     └──────────────┘
-          │ id          │        │            │ *
-          │ content     │        │     ┌──────▼───┐
-          │ createdAt   │        │     │   Tag    │
-          │ task (FK)   │        │     │──────────│
-          └─────────────┘        │     │ id       │
-                                 │     │ name     │
-                                 │     └──────────┘
-```
+
+</Transform>
 
 ---
 

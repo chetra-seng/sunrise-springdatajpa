@@ -67,6 +67,8 @@ public interface TaskRepository
 This gives you `findAll(Specification<Task> spec)` for free.
 
 ---
+zoom: 0.75
+---
 
 # Writing Specifications
 

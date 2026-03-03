@@ -97,14 +97,17 @@ CREATE TABLE projects (
 3. What happens if you run the INSERT a second time with the same name?
 4. Can two projects ever have the same `id`?
 
-<v-click>
+---
+
+# Practice — Answers
 
 ```sql
 -- 1.
 INSERT INTO projects (name) VALUES ('Sunrise Course');
+
 -- 2. id = 1  (first row, sequence starts at 1)
+
 -- 3. A second row is inserted — no uniqueness constraint on name, id = 2
+
 -- 4. No — PRIMARY KEY enforces uniqueness
 ```
-
-</v-click>

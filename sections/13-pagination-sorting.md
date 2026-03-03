@@ -20,12 +20,14 @@ layout: center
 | `TaskMapper.java` | **No changes** |
 
 ---
+zoom: 0.85
+---
 
 # Step 1: Update Task.java
 
 Open `Task.java` and make these changes:
 
-```java
+```java 
 package com.chetraseng.sunrise_task_flow_api.model;
 
 import jakarta.persistence.*;
@@ -160,6 +162,8 @@ If tests fail with `Table "TASKS" not found`, check that `src/test/resources/app
 </v-click>
 
 ---
+zoom: 0.85
+---
 
 # What the Migration Looks Like Live
 
@@ -190,28 +194,52 @@ Hibernate:
 
 # Architecture: What Changed vs Stayed the Same
 
-```
-HTTP Request
-     │
-     ▼
-┌─────────────────┐
-│  TaskController  │  ← UNCHANGED
-└────────┬─────────┘
-         │
-         ▼
-┌─────────────────┐
-│ TaskServiceImpl  │  ← one method updated (delete)
-└────────┬─────────┘
-         │
-         ▼
-┌─────────────────┐
-│ TaskRepository   │  ← REPLACED: class → interface
-└────────┬─────────┘
-         │
-         ▼
-┌─────────────────┐
-│   PostgreSQL     │  ← NEW
-└─────────────────┘
-```
+<div class="flex flex-col items-center gap-0 mt-4 select-none">
 
-The controller and mapper are completely untouched. One repository file replaced.
+  <!-- HTTP Request -->
+  <div class="text-xs font-mono text-slate-500 dark:text-slate-400 mb-1">HTTP Request</div>
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <!-- TaskController -->
+  <div class="flex items-center gap-3">
+    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-green-400 dark:border-green-500 bg-green-50 dark:bg-green-900/30 font-mono text-sm font-semibold text-green-800 dark:text-green-300">
+      TaskController
+    </div>
+    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">UNCHANGED</span>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <!-- TaskServiceImpl -->
+  <div class="flex items-center gap-3">
+    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-green-400 dark:border-green-500 bg-green-50 dark:bg-green-900/30 font-mono text-sm font-semibold text-green-800 dark:text-green-300">
+      TaskServiceImpl
+    </div>
+    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">UNCHANGED</span>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <!-- TaskRepository -->
+  <div class="flex items-center gap-3">
+    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-mono text-sm font-semibold text-amber-800 dark:text-amber-300">
+      TaskRepository
+    </div>
+    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400">REPLACED</span>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <!-- PostgreSQL -->
+  <div class="flex items-center gap-3">
+    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30 font-mono text-sm font-semibold text-blue-800 dark:text-blue-300">
+      PostgreSQL
+    </div>
+    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400">NEW</span>
+  </div>
+
+</div>
+
+<div class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+  Controller and service untouched — only the repository layer swapped out.
+</div>

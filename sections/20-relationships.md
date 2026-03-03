@@ -39,18 +39,35 @@ CREATE TABLE task_tags (
 
 # The Three Relationships We'll Add
 
+<Transform :scale="0.6">
+
+```mermaid
+erDiagram
+    PROJECT ||--o{ TASK : "has many"
+    TASK ||--o{ COMMENT : "has many"
+    TASK }o--o{ TAG : "via task_tags"
+
+    PROJECT {
+        Long id
+        String name
+    }
+    TASK {
+        Long id
+        String title
+        Long project_id
+    }
+    COMMENT {
+        Long id
+        String content
+        Long task_id
+    }
+    TAG {
+        Long id
+        String name
+    }
 ```
-┌─────────────┐  1     *  ┌──────────────────┐
-│   Project   │──────────▶│      Task        │
-└─────────────┘           └──────┬───────────┘
-                                 │ 1
-                    *            │              *
-          ┌─────────────┐        │      ┌──────────────┐
-          │   Comment   │        │      │     Tag      │
-          └─────────────┘        │      └──────────────┘
-                                 │ *
-                          task_tags (join table)
-```
+
+</Transform>
 
 | Relationship | JPA | SQL |
 |---|---|---|
@@ -66,6 +83,8 @@ layout: center
 
 ## One Project Has Many Tasks
 
+---
+zoom: 0.85
 ---
 
 # Create Project.java
@@ -127,12 +146,14 @@ SELECT * FROM tasks WHERE project_id = ?
 </v-click>
 
 ---
+zoom: 0.85
+---
 
 # Update Task.java — Add the Project FK
 
 Add one field to `Task.java`:
 
-```java {all|7-9}
+```java
 @Entity
 @Table(name = "tasks")
 @Data
@@ -215,6 +236,8 @@ layout: center
 
 ## One Task Has Many Comments
 
+---
+zoom: 0.85
 ---
 
 # Create Comment.java
@@ -341,6 +364,8 @@ public class Tag {
 ```
 
 ---
+zoom: 0.85
+---
 
 # Update Task.java — Add Tags
 
@@ -365,6 +390,8 @@ public class Task {
 }
 ```
 
+---
+zoom: 0.85
 ---
 
 # @ManyToMany + @JoinTable Explained
@@ -422,6 +449,8 @@ JOIN tags tg ON tt.tag_id = tg.id
 WHERE tg.name = 'urgent'
 ```
 
+---
+zoom: 0.7
 ---
 
 # Full Task.java After All Relationships

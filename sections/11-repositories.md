@@ -102,6 +102,8 @@ List<Task> findByCompletedOrTitle(boolean completed, String title);
 ```
 
 ---
+zoom: 0.85
+---
 
 # findByCompleted — Replacing the Stream Filter
 

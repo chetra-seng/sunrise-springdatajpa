@@ -128,10 +128,11 @@ That's why the service doesn't need to change.
 
 ---
 
-# Comparing the Two Approaches
+# From Class to Interface
 
+````md magic-move
 ```java
-// Before (manual ConcurrentHashMap):
+// Before: a class you wrote yourself
 @Repository
 public class TaskRepository {
     private Map<Long, Task> tasks = new ConcurrentHashMap<>();
@@ -142,14 +143,21 @@ public class TaskRepository {
     public Task save(Task task) { /* assign id + put in map */ }
     public Boolean delete(Long id) { /* containsKey + remove */ }
 }
+```
 
-// After (Spring Data JPA):
+```java
+// After: an interface Spring implements for you
 public interface TaskRepository extends JpaRepository<Task, Long> {
     // All four methods above exist by default
     // Add custom queries as needed
 }
 ```
+````
 
+Spring generates the entire implementation at startup — no `ConcurrentHashMap`, no `AtomicLong`.
+
+---
+zoom: 0.85
 ---
 
 # The ddl-auto Setting

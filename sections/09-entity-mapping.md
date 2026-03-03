@@ -27,10 +27,9 @@ You write Java. Hibernate writes SQL.
 
 ---
 
-# Before and After: Task.java
+# Task.java — Before (Plain POJO)
 
 ```java
-// Before (plain POJO):
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -43,11 +42,17 @@ public class Task {
 }
 ```
 
-```java
-// After (JPA entity):
+No database awareness. Just a plain Java object.
+
+---
+
+# Task.java — After (JPA Entity)
+
+```java {|1-4,7,9-10,17-18}
 @Entity
 @Table(name = "tasks")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -191,6 +196,8 @@ Hibernate:
 ```
 
 ---
+zoom: 0.7
+---
 
 # Full Task.java After Migration
 
@@ -204,7 +211,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tasks")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -220,7 +228,11 @@ public class Task {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @ManyToOne
+    @JoinColumn(name = "project_id")
+    private Project project;
 }
 ```
 
-Five annotations added. Fields unchanged. Service and controller still work.
+`@ManyToOne` + `@JoinColumn` adds a `project_id` FK column — many tasks belong to one project.

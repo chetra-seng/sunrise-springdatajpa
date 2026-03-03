@@ -106,6 +106,8 @@ Task savedTask = taskRepository.save(task);  // works with both repositories
 </v-click>
 
 ---
+zoom: 0.85
+---
 
 # deleteById() vs our delete()
 
@@ -180,6 +182,8 @@ JpaRepository<T, ID>
 
 You get all methods from all levels. `JpaRepository` adds JPA-specific features like `flush()` and `saveAndFlush()`.
 
+---
+zoom: 0.8
 ---
 
 # Why the Service Doesn't Change

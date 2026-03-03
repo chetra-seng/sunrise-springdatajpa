@@ -157,6 +157,8 @@ Never use `create` or `create-drop` in production — it drops all your data on 
 </v-click>
 
 ---
+zoom: 0.85
+---
 
 # Verify the Setup
 

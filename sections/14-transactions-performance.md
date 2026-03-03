@@ -27,6 +27,8 @@ In JPA, we represent this with `@ManyToOne` on the Task side and `@OneToMany` on
 </v-click>
 
 ---
+zoom: 0.85
+---
 
 # Step 1: Create Project.java
 
@@ -62,6 +64,8 @@ public class Project {
 }
 ```
 
+---
+zoom: 0.85
 ---
 
 # Step 2: Update Task.java
@@ -175,6 +179,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 SELECT * FROM tasks WHERE project_id = 1
 ```
 
+---
+zoom: 0.85
 ---
 
 # Creating a Task With a Project

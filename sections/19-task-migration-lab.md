@@ -84,12 +84,14 @@ psql -U postgres -c "CREATE DATABASE taskflow;"
 ```
 
 ---
+zoom: 0.85
+---
 
 # Step 3 — Update Task.java
 
 Open `Task.java` and add JPA annotations. The fields don't change — only the annotations do.
 
-```java {all|1-5|7-10|12-13|15|all}
+```java
 package com.chetraseng.sunrise_task_flow_api.model;
 
 import jakarta.persistence.*;
@@ -201,6 +203,8 @@ Hibernate:
 ```
 
 ---
+zoom: 0.85
+---
 
 # Step 7 — Test All Endpoints
 
@@ -231,27 +235,49 @@ curl -s -X DELETE http://localhost:9999/api/tasks/1
 
 # What Just Happened
 
-```
-Before                          After
-─────────────────────           ─────────────────────
-TaskController (unchanged)      TaskController (unchanged)
-       ↓                               ↓
-TaskServiceImpl (unchanged)     TaskServiceImpl (unchanged)
-       ↓                               ↓
-TaskRepository                  TaskRepository
-  ConcurrentHashMap          →    JpaRepository<Task, Long>
-  AtomicLong counter              (Spring-generated impl)
-                                        ↓
-                                   Hibernate
-                                        ↓
-                                   PostgreSQL
-```
+<div class="flex items-start gap-6 mt-4">
 
-<v-click>
+  <!-- Before -->
+  <div class="flex-1 flex flex-col items-center gap-2">
+    <div class="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-1">Before</div>
+    <div class="w-full text-center bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-700 text-gray-800 dark:text-blue-200 rounded-lg px-3 py-2 text-sm font-mono">TaskController</div>
+    <div class="text-gray-400 dark:text-gray-500 text-lg">↓</div>
+    <div class="w-full text-center bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-700 text-gray-800 dark:text-blue-200 rounded-lg px-3 py-2 text-sm font-mono">TaskServiceImpl</div>
+    <div class="text-gray-400 dark:text-gray-500 text-lg">↓</div>
+    <div class="w-full text-center bg-orange-50 dark:bg-orange-950 border border-orange-300 dark:border-orange-700 rounded-lg px-3 py-2 text-sm font-mono">
+      <div class="font-semibold text-gray-800 dark:text-orange-200">TaskRepository</div>
+      <div class="text-xs text-gray-500 dark:text-orange-400 mt-0.5">ConcurrentHashMap</div>
+      <div class="text-xs text-gray-500 dark:text-orange-400">AtomicLong</div>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="flex items-center self-center text-3xl text-green-500 dark:text-green-400 font-bold">→</div>
+
+  <!-- After -->
+  <div class="flex-1 flex flex-col items-center gap-2">
+    <div class="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-1">After</div>
+    <div class="w-full text-center bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-700 text-gray-800 dark:text-blue-200 rounded-lg px-3 py-2 text-sm font-mono">TaskController</div>
+    <div class="text-gray-400 dark:text-gray-500 text-lg">↓</div>
+    <div class="w-full text-center bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-700 text-gray-800 dark:text-blue-200 rounded-lg px-3 py-2 text-sm font-mono">TaskServiceImpl</div>
+    <div class="text-gray-400 dark:text-gray-500 text-lg">↓</div>
+    <div class="w-full text-center bg-green-50 dark:bg-green-950 border border-green-400 dark:border-green-600 rounded-lg px-3 py-2 text-sm font-mono">
+      <div class="font-semibold text-green-700 dark:text-green-300">TaskRepository</div>
+      <div class="text-xs text-green-600 dark:text-green-400 mt-0.5">JpaRepository&lt;Task, Long&gt;</div>
+    </div>
+    <div class="text-gray-400 dark:text-gray-500 text-lg">↓</div>
+    <div class="w-full text-center bg-green-50 dark:bg-green-950 border border-green-400 dark:border-green-600 rounded-lg px-3 py-2 text-sm font-mono text-green-700 dark:text-green-300">Hibernate</div>
+    <div class="text-gray-400 dark:text-gray-500 text-lg">↓</div>
+    <div class="w-full text-center bg-green-100 dark:bg-green-900 border-2 border-green-500 dark:border-green-400 rounded-lg px-3 py-2 text-sm font-mono font-bold text-green-800 dark:text-green-200">PostgreSQL</div>
+  </div>
+
+</div>
+
+<div class="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center">
 
 The layered architecture meant only the repository layer changed. This is exactly why we separate concerns.
 
-</v-click>
+</div>
 
 ---
 layout: center

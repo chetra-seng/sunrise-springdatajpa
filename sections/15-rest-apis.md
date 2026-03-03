@@ -26,6 +26,8 @@ SELECT * FROM comments WHERE task_id = 3 ORDER BY created_at ASC;
 ```
 
 ---
+zoom: 0.85
+---
 
 # Comment.java
 
@@ -60,6 +62,8 @@ public class Comment {
 }
 ```
 
+---
+zoom: 0.85
 ---
 
 # Update Task.java — Add Comments
@@ -162,6 +166,8 @@ public interface CommentMapper {
 `task.id` → the ID from the nested `Task` object. MapStruct traverses the relationship.
 
 ---
+zoom: 0.8
+---
 
 # CommentController — Nested Routes
 
@@ -187,6 +193,8 @@ public class CommentController {
 }
 ```
 
+---
+zoom: 0.8
 ---
 
 # Adding a Comment
