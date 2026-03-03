@@ -1,240 +1,251 @@
 ---
 layout: center
 ---
-# One-to-Many: Project → Task
+# Transactions & Performance
 
-## @OneToMany and @ManyToOne
+## @Transactional, N+1 Queries, and FetchType
 
 ---
 
-# The Relationship
+# What Is a Transaction?
 
-One project has many tasks. Each task belongs to exactly one project.
+A transaction is a group of DB operations that succeed or fail together.
 
 ```sql
--- SQL representation:
-tasks table has a project_id column (FK → projects.id)
-
-SELECT t.* FROM tasks t
-JOIN projects p ON t.project_id = p.id
-WHERE p.id = 1;
+BEGIN;
+UPDATE tasks SET completed = true WHERE id = 5;
+UPDATE tasks SET updated_at = NOW() WHERE id = 5;
+COMMIT;   -- both changes saved
+-- or:
+ROLLBACK; -- both changes undone if anything fails
 ```
 
 <v-click>
 
-In JPA, we represent this with `@ManyToOne` on the Task side and `@OneToMany` on the Project side.
+Without transactions, if the second `UPDATE` crashes, you end up with `completed = true` but no `updated_at` — **inconsistent data**.
 
 </v-click>
 
 ---
-zoom: 0.85
----
 
-# Step 1: Create Project.java
+# @Transactional in Spring
+
+Spring wraps a method in a transaction automatically:
 
 ```java
-package com.chetraseng.sunrise_task_flow_api.model;
+@Service
+@RequiredArgsConstructor
+public class TaskServiceImpl implements TaskService {
 
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import java.time.LocalDateTime;
-import java.util.List;
+    private final TaskRepository taskRepository;
 
-@Entity
-@Table(name = "projects")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Project {
+    @Transactional          // ← Spring opens a transaction before this method
+    public TaskResponse complete(Long id) {
+        Task task = taskRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    private String name;
-    private String description;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-    private List<Task> tasks;
+        task.setCompleted(true);
+        return taskMapper.toTaskResponse(taskRepository.save(task));
+    }   // ← Spring commits here; if exception thrown → auto rollback
 }
 ```
 
----
-zoom: 0.85
+If anything inside `complete()` throws a `RuntimeException`, Spring rolls back the entire transaction.
+
 ---
 
-# Step 2: Update Task.java
-
-Add the `@ManyToOne` relationship:
+# Where to Put @Transactional
 
 ```java
-@Entity
-@Table(name = "tasks")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Task {
+// ✅ On the service method — correct place:
+@Service
+public class TaskServiceImpl {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Transactional
+    public TaskResponse update(Long id, TaskRequest request) { ... }
 
-    private String title;
-    private String description;
-    private Boolean completed = false;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @ManyToOne
-    @JoinColumn(name = "project_id")    // ← the FK column in tasks table
-    private Project project;            // ← replaces the old Long projectId
+    @Transactional
+    public boolean delete(Long id) { ... }
 }
 ```
 
+```java
+// ❌ Don't put @Transactional on the controller:
+@RestController
+public class TaskController {
+
+    @Transactional   // wrong layer — controllers shouldn't own transactions
+    @PutMapping("/{id}")
+    public ResponseEntity<TaskResponse> update(...) { ... }
+}
+```
+
+**Rule:** transactions belong on the service layer.
+
 ---
 
-# Annotation Meanings
+# @Transactional(readOnly = true)
+
+For read-only methods, you can hint to the DB that no writes will happen:
 
 ```java
-// On Task — "many tasks belong to one project":
-@ManyToOne
+@Transactional(readOnly = true)
+public List<TaskResponse> findAll() {
+    return taskRepository.findAll().stream()
+        .map(taskMapper::toTaskResponse).toList();
+}
+
+@Transactional(readOnly = true)
+public TaskResponse findById(Long id) {
+    return taskRepository.findById(id)
+        .map(taskMapper::toTaskResponse)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+}
+```
+
+Benefits:
+- Hibernate skips **dirty checking** (no need to track entity changes)
+- Some databases optimize read-only transactions (e.g., replicas, snapshots)
+
+---
+
+# The N+1 Query Problem
+
+**Scenario:** Load 10 tasks, each with a project. How many SQL queries run?
+
+```java
+List<Task> tasks = taskRepository.findAll();  // 1 query
+
+for (Task task : tasks) {
+    System.out.println(task.getProject().getName());  // 1 query PER task
+}
+```
+
+With `show-sql=true`, you'd see:
+
+```sql
+SELECT * FROM tasks;                        -- 1 query
+SELECT * FROM projects WHERE id = 1;        -- for task 1
+SELECT * FROM projects WHERE id = 2;        -- for task 2
+SELECT * FROM projects WHERE id = 3;        -- for task 3
+-- ... 10 more queries for 10 tasks
+```
+
+**1 + 10 = 11 queries** to load 10 tasks. This is the N+1 problem.
+
+---
+
+# FetchType: LAZY vs EAGER
+
+```java
+// Default for @ManyToOne — EAGER (loads immediately):
+@ManyToOne(fetch = FetchType.EAGER)
 @JoinColumn(name = "project_id")
 private Project project;
-// SQL: project_id BIGINT REFERENCES projects(id)
+// → Always JOINs project when loading task
 
-// On Project — "one project has many tasks":
-@OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-private List<Task> tasks;
-// SQL: no new column — the FK is already in tasks.project_id
-// mappedBy = "project" means "look at Task.project for the FK"
+// LAZY — load only when accessed:
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "project_id")
+private Project project;
+// → Loads project only if you call task.getProject()
 ```
 
----
-
-# CascadeType.ALL
-
-```java
-@OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-private List<Task> tasks;
-```
-
-`cascade = CascadeType.ALL` means: when you do something to the project, cascade it to its tasks.
-
-| Operation on Project | Cascade Effect |
-|----------------------|----------------|
-| `save(project)` | saves all tasks too |
-| `delete(project)` | deletes all tasks too |
-
-<v-click>
-
-Use `CascadeType.ALL` when child entities shouldn't exist without their parent.
-Tasks without a project = orphaned data.
-
-</v-click>
+| | EAGER | LAZY |
+|-|-------|------|
+| When | On every load | On first access |
+| Extra queries? | No (joined) | Yes (if accessed) |
+| Risk | Always fetches even when unused | N+1 if accessed in a loop |
 
 ---
-
-# ProjectRepository
-
-```java
-package com.chetraseng.sunrise_task_flow_api.repository;
-
-import com.chetraseng.sunrise_task_flow_api.model.Project;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-public interface ProjectRepository extends JpaRepository<Project, Long> {
-    // findAll, findById, save, deleteById — all available
-}
-```
-
-Same pattern as `TaskRepository`. One line. Spring generates the implementation.
-
+zoom: 0.85
 ---
 
-# Updated TaskRepository
+# Solving N+1 with JOIN FETCH
+
+Use `@Query` with `JOIN FETCH` to load relationships in one query:
 
 ```java
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    List<Task> findByCompleted(boolean completed);
-
-    // Get all tasks for a project
-    List<Task> findByProject(Project project);
-
-    // Or by project ID directly
-    List<Task> findByProjectId(Long projectId);
+    @Query("SELECT t FROM Task t LEFT JOIN FETCH t.project")
+    List<Task> findAllWithProject();
 
 }
 ```
 
 ```sql
--- findByProjectId(1L):
-SELECT * FROM tasks WHERE project_id = 1
+-- One query instead of N+1:
+SELECT t.*, p.*
+FROM tasks t
+LEFT JOIN projects p ON t.project_id = p.id
 ```
 
----
-zoom: 0.85
+<v-click>
+
+Use `show-sql=true` to **confirm** how many queries your code runs. If you see the same table being queried in a loop, you have an N+1 problem.
+
+</v-click>
+
 ---
 
-# Creating a Task With a Project
+# Using show-sql to Diagnose
+
+In `application.properties`:
+```properties
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+```
+
+Then run your endpoint and read the logs:
+
+```sql
+-- GOOD: one query with a join
+Hibernate:
+    select t.id, t.title, t.completed, p.id, p.name
+    from tasks t left join projects p on t.project_id = p.id
+
+-- BAD: N+1
+Hibernate: select * from tasks
+Hibernate: select * from projects where id=?
+Hibernate: select * from projects where id=?
+Hibernate: select * from projects where id=?
+```
+
+If you see the same query repeated, fix it with `JOIN FETCH`.
+
+---
+
+# @Transactional + Lazy Loading Trap
 
 ```java
-// In TaskServiceImpl:
-public TaskResponse create(String title, String description, Long projectId) {
-    Project project = projectRepository.findById(projectId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-            "Project not found: " + projectId));
+// ❌ This fails with LazyInitializationException:
+public TaskResponse findById(Long id) {
+    Task task = taskRepository.findById(id).orElseThrow();
+    // Transaction closes here after findById returns
+    return task.getProject().getName();  // BOOM — session already closed
+}
 
-    Task task = Task.builder()
-        .title(title)
-        .description(description)
-        .project(project)          // ← set the relationship object
-        .completed(false)
-        .build();
-
-    return taskMapper.toTaskResponse(taskRepository.save(task));
+// ✅ Keep @Transactional open for the whole method:
+@Transactional(readOnly = true)
+public TaskResponse findById(Long id) {
+    Task task = taskRepository.findById(id).orElseThrow();
+    return task.getProject().getName();  // ✓ session still open
 }
 ```
 
----
-
-# Generated SQL
-
-```bash
-# POST /api/tasks with {"title":"New task","description":"...","projectId":1}
-```
-
-```sql
--- JPA runs:
-SELECT * FROM projects WHERE id = 1;   -- validate project exists
-
-INSERT INTO tasks (title, description, completed, created_at, project_id)
-VALUES ('New task', '...', false, NOW(), 1);
-```
-
-The `project_id` column is populated automatically from the `Task.project` reference.
+`LazyInitializationException` = you tried to access a lazy relationship after the Hibernate session closed.
 
 ---
 
-# Avoid Infinite JSON Loops
+# Summary
 
-`Task` has `Project project`, and `Project` has `List<Task> tasks`.
-JSON serialization will loop forever without `@JsonIgnore`:
-
-```java
-// In Project.java:
-@OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-@JsonIgnore
-private List<Task> tasks;
-```
-
-Or use `@JsonManagedReference` / `@JsonBackReference` for bi-directional serialization.
-
-For this course, `@JsonIgnore` on the `tasks` side is simplest. Expose task data through the `TaskResponse` DTO.
+| Concept | What It Does |
+|---------|-------------|
+| `@Transactional` | Wraps method in a DB transaction; auto-rollback on exception |
+| `@Transactional(readOnly = true)` | Optimized for read-only methods — skips dirty checking |
+| `FetchType.LAZY` | Load relationship only when accessed |
+| `FetchType.EAGER` | Always JOIN relationship when loading entity |
+| N+1 problem | 1 query for list + N queries for each row's relationship |
+| `JOIN FETCH` | Fix N+1 by loading relationship in one query |
+| `show-sql=true` | See the SQL Hibernate generates — your best debugging tool |

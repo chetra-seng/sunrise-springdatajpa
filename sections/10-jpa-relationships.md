@@ -7,35 +7,6 @@ layout: center
 
 ---
 
-# From Class to Interface
-
-```java
-// Before: a class you wrote yourself
-@Repository
-public class TaskRepository {
-    private Map<Long, Task> tasks = new ConcurrentHashMap<>();
-    private AtomicLong counter = new AtomicLong(0);
-
-    public List<Task> findAll() { ... }
-    public Optional<Task> findById(Long id) { ... }
-    public Task save(Task task) { ... }
-    public Boolean delete(Long id) { ... }
-}
-
-// After: an interface Spring implements for you
-public interface TaskRepository extends JpaRepository<Task, Long> {
-    // Spring generates the implementation at startup
-}
-```
-
-<v-click>
-
-No `@Repository` annotation needed — Spring detects JPA repository interfaces automatically.
-
-</v-click>
-
----
-
 # JpaRepository&lt;Task, Long&gt;
 
 The two type parameters tell Spring what you're storing:

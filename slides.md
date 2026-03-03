@@ -84,10 +84,6 @@ src: ./sections/08-spring-jpa-intro.md
 ---
 
 ---
-src: ./sections/12-query-methods.md
----
-
----
 src: ./sections/09-entity-mapping.md
 ---
 
@@ -97,6 +93,10 @@ src: ./sections/10-jpa-relationships.md
 
 ---
 src: ./sections/11-repositories.md
+---
+
+---
+src: ./sections/12-query-methods.md
 ---
 
 ---
@@ -112,15 +112,15 @@ src: ./sections/18-specifications.md
 ---
 
 ---
-src: ./sections/20-relationships.md
----
-
----
 src: ./sections/13-pagination-sorting.md
 ---
 
 ---
 src: ./sections/14-transactions-performance.md
+---
+
+---
+src: ./sections/20-relationships.md
 ---
 
 ---

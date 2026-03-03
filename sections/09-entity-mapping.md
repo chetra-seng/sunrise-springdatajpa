@@ -27,9 +27,11 @@ You write Java. Hibernate writes SQL.
 
 ---
 
-# Task.java — Before (Plain POJO)
+# Task.java — Before → After
 
+````md magic-move
 ```java
+// Plain POJO — no database awareness
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -42,13 +44,8 @@ public class Task {
 }
 ```
 
-No database awareness. Just a plain Java object.
-
----
-
-# Task.java — After (JPA Entity)
-
-```java {|1-4,7,9-10,17-18}
+```java
+// JPA Entity — Hibernate maps this to a database table
 @Entity
 @Table(name = "tasks")
 @Getter
@@ -69,6 +66,7 @@ public class Task {
     private LocalDateTime createdAt;
 }
 ```
+````
 
 ---
 

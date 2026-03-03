@@ -15,17 +15,42 @@ layout: center
 
 **Spring Data JPA** = Spring's layer on top — makes it even easier to use.
 
-```
-Your Java code (@Entity, JpaRepository)
-         ↓
-   Spring Data JPA
-         ↓
-      Hibernate
-         ↓
+<div class="flex flex-col items-center gap-0 mt-2 select-none">
+
+  <div class="w-56 text-center px-3 py-1.5 rounded-lg border-2 border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30 font-mono text-xs font-semibold text-blue-800 dark:text-blue-300">
+    Your Java Code
+    <div class="text-xs font-normal text-blue-600 dark:text-blue-400">@Entity, JpaRepository</div>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <div class="w-56 text-center px-3 py-1.5 rounded-lg border-2 border-green-400 dark:border-green-500 bg-green-50 dark:bg-green-900/30 font-mono text-xs font-semibold text-green-800 dark:text-green-300">
+    Spring Data JPA
+    <div class="text-xs font-normal text-green-600 dark:text-green-400">repository abstraction</div>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <div class="w-56 text-center px-3 py-1.5 rounded-lg border-2 border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-mono text-xs font-semibold text-amber-800 dark:text-amber-300">
+    Hibernate
+    <div class="text-xs font-normal text-amber-600 dark:text-amber-400">JPA implementation — generates SQL</div>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <div class="w-56 text-center px-3 py-1.5 rounded-lg border-2 border-slate-400 dark:border-slate-500 bg-slate-50 dark:bg-slate-800/50 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
     JDBC Driver
-         ↓
+    <div class="text-xs font-normal text-slate-500 dark:text-slate-400">sends SQL over the wire</div>
+  </div>
+
+  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+
+  <div class="w-56 text-center px-3 py-1.5 rounded-lg border-2 border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 font-mono text-xs font-semibold text-indigo-800 dark:text-indigo-300">
     PostgreSQL
-```
+    <div class="text-xs font-normal text-indigo-600 dark:text-indigo-400">stores and queries your data</div>
+  </div>
+
+</div>
 
 ---
 

@@ -1,245 +1,214 @@
 ---
 layout: center
 ---
-# Migrating the Task API
+# Pagination & Sorting
 
-## Step-by-Step: Task.java and TaskRepository.java
-
----
-
-# The Migration Plan
-
-| File | Change |
-|------|--------|
-| `pom.xml` | ✅ Added JPA + PostgreSQL deps (previous section) |
-| `application.properties` | ✅ Added datasource + JPA config (previous section) |
-| `Task.java` | Add `@Entity`, `@Id`, `@GeneratedValue`, `@CreationTimestamp` |
-| `TaskRepository.java` | Replace class with interface extending `JpaRepository` |
-| `TaskServiceImpl.java` | Minor adjustment to `delete()` — everything else unchanged |
-| `TaskController.java` | **No changes** |
-| `TaskMapper.java` | **No changes** |
-
----
-zoom: 0.85
----
-
-# Step 1: Update Task.java
-
-Open `Task.java` and make these changes:
-
-```java 
-package com.chetraseng.sunrise_task_flow_api.model;
-
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "tasks")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Task {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    private String title;
-    private String description;
-    private Boolean completed = false;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;   // ← remove = LocalDateTime.now()
-}
-```
+## Pageable, PageRequest, Page&lt;T&gt;, Sort
 
 ---
 
-# Task.java — What Changed
+# Why Pagination Matters
 
-| Before | After |
-|--------|-------|
-| No annotations | `@Entity @Table(name = "tasks")` |
-| `private Long id` | `@Id @GeneratedValue(IDENTITY) private Long id` |
-| `private LocalDateTime createdAt = LocalDateTime.now()` | `@CreationTimestamp private LocalDateTime createdAt` |
-| No `@Builder` | Added `@Builder` |
-
-The five fields are the same. The types are the same. Only annotations added.
-
----
-
-# Step 2: Replace TaskRepository.java
-
-**Delete** the entire class body. Replace with:
-
+Without pagination:
 ```java
-package com.chetraseng.sunrise_task_flow_api.repository;
-
-import com.chetraseng.sunrise_task_flow_api.model.Task;
-import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.List;
-
-public interface TaskRepository extends JpaRepository<Task, Long> {
-
-    List<Task> findByCompleted(boolean completed);
-
-}
+taskRepository.findAll()
+// → SELECT * FROM tasks
+// Returns ALL rows — fine with 10 tasks, slow with 100,000
 ```
 
-That's the entire file. No `ConcurrentHashMap`. No `AtomicLong`. No `@Repository`.
-
----
-
-# Step 3: Update TaskServiceImpl.java — delete()
-
-The only method that needs updating is `delete()`.
-
-Our old `TaskRepository.delete(id)` returned `Boolean`. JpaRepository's `deleteById()` does not.
-
+With pagination:
 ```java
-// Before:
-@Override
-public boolean delete(Long id) {
-    return taskRepository.delete(id);   // returned Boolean
-}
-
-// After:
-@Override
-public boolean delete(Long id) {
-    if (!taskRepository.existsById(id)) {
-        return false;
-    }
-    taskRepository.deleteById(id);
-    return true;
-}
+taskRepository.findAll(PageRequest.of(0, 10))
+// → SELECT * FROM tasks LIMIT 10 OFFSET 0
+// Returns exactly 10 rows at a time
 ```
-
----
-
-# Step 4: Update TaskServiceImpl.java — findAll()
-
-Optionally push the `completed` filter to the database:
-
-```java
-// The current service signature:
-public List<TaskResponse> findAll() {
-    return taskRepository.findAll().stream()
-        .map(taskMapper::toTaskResponse).toList();
-}
-```
-
-The `?completed=` filter currently runs in the controller as a stream filter.
-You can keep it there — or add a new service method:
-
-```java
-public List<TaskResponse> findByCompleted(boolean completed) {
-    return taskRepository.findByCompleted(completed).stream()
-        .map(taskMapper::toTaskResponse).toList();
-}
-```
-
-Both approaches work. Moving the filter to the DB is better at scale.
-
----
-
-# Step 5: Verify — Run the Tests
-
-```bash
-./mvnw test
-```
-
-The existing `TaskControllerTest` tests should pass. With H2 in test scope and the test `application.properties` configured:
-- Each test run creates a fresh schema
-- No `@DirtiesContext` needed — JPA + H2 handles isolation via `@Transactional`
 
 <v-click>
 
-If tests fail with `Table "TASKS" not found`, check that `src/test/resources/application.properties` exists and has the H2 config.
+Pagination keeps your API fast as data grows. `Pageable` is Spring Data's standard way to pass page size and offset to any repository method.
 
 </v-click>
 
 ---
+
+# PageRequest.of()
+
+```java
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+// Page 0, 10 items per page:
+Pageable pageable = PageRequest.of(0, 10);
+
+// Page 1 (second page), 10 items:
+Pageable pageable = PageRequest.of(1, 10);
+
+// Page 0, 5 items, sorted by createdAt descending:
+Pageable pageable = PageRequest.of(0, 5, Sort.by("createdAt").descending());
+```
+
+`PageRequest.of(page, size)` — page is **0-indexed**.
+
+---
 zoom: 0.85
 ---
 
-# What the Migration Looks Like Live
+# JpaRepository + Pageable
 
-Enable `show-sql=true` and run:
+`JpaRepository` supports `Pageable` out of the box:
+
+```java
+// Returns a Page<Task> — not just a List
+Page<Task> page = taskRepository.findAll(pageable);
+
+// Page<T> gives you:
+page.getContent()        // List<Task> — the current page's rows
+page.getTotalElements()  // long — total rows in the DB
+page.getTotalPages()     // int  — total number of pages
+page.getNumber()         // int  — current page number (0-indexed)
+page.isLast()            // boolean — is this the last page?
+```
+
+```sql
+-- JPA runs two queries:
+SELECT * FROM tasks LIMIT 10 OFFSET 0;
+SELECT COUNT(*) FROM tasks;
+```
+
+---
+zoom: 0.85
+---
+
+# Paginated Endpoint Example
+
+```java
+// TaskController.java — add a paginated endpoint:
+@GetMapping("/paged")
+public ResponseEntity<Page<TaskResponse>> getTasksPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size) {
+
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<TaskResponse> result = taskRepository.findAll(pageable)
+        .map(taskMapper::toTaskResponse);   // map() works on Page<T>
+
+    return ResponseEntity.ok(result);
+}
+```
 
 ```bash
-curl -X POST http://localhost:9999/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"First DB task","description":"Stored in PostgreSQL"}'
-```
-
-Log output:
-```sql
-Hibernate:
-    insert
-    into
-        tasks (completed, created_at, description, title)
-    values
-        (?, ?, ?, ?)
-```
-
-```json
-{"id":1,"title":"First DB task","description":"Stored in PostgreSQL",
- "completed":false,"createdAt":"2026-03-02T10:00:00"}
+curl http://localhost:9999/api/tasks/paged?page=0&size=5
 ```
 
 ---
 
-# Architecture: What Changed vs Stayed the Same
+# Page&lt;T&gt; JSON Response
 
-<div class="flex flex-col items-center gap-0 mt-4 select-none">
+```json
+{
+  "content": [
+    {"id": 1, "title": "Set up PostgreSQL", "completed": false},
+    {"id": 2, "title": "Add @Entity to Task", "completed": true}
+  ],
+  "totalElements": 42,
+  "totalPages": 9,
+  "number": 0,
+  "size": 5,
+  "last": false,
+  "first": true
+}
+```
 
-  <!-- HTTP Request -->
-  <div class="text-xs font-mono text-slate-500 dark:text-slate-400 mb-1">HTTP Request</div>
-  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+Clients use `totalPages` and `number` to build next/previous navigation.
 
-  <!-- TaskController -->
-  <div class="flex items-center gap-3">
-    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-green-400 dark:border-green-500 bg-green-50 dark:bg-green-900/30 font-mono text-sm font-semibold text-green-800 dark:text-green-300">
-      TaskController
-    </div>
-    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">UNCHANGED</span>
-  </div>
+---
 
-  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+# Sorting with Sort
 
-  <!-- TaskServiceImpl -->
-  <div class="flex items-center gap-3">
-    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-green-400 dark:border-green-500 bg-green-50 dark:bg-green-900/30 font-mono text-sm font-semibold text-green-800 dark:text-green-300">
-      TaskServiceImpl
-    </div>
-    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">UNCHANGED</span>
-  </div>
+```java
+import org.springframework.data.domain.Sort;
 
-  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+// Sort by one field:
+Sort sort = Sort.by("createdAt").descending();
+taskRepository.findAll(sort);
+// → SELECT * FROM tasks ORDER BY created_at DESC
 
-  <!-- TaskRepository -->
-  <div class="flex items-center gap-3">
-    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-mono text-sm font-semibold text-amber-800 dark:text-amber-300">
-      TaskRepository
-    </div>
-    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400">REPLACED</span>
-  </div>
+// Sort by multiple fields:
+Sort sort = Sort.by("completed").ascending()
+               .and(Sort.by("createdAt").descending());
+// → ORDER BY completed ASC, created_at DESC
+```
 
-  <div class="w-0.5 h-4 bg-slate-400 dark:bg-slate-500"></div>
+---
 
-  <!-- PostgreSQL -->
-  <div class="flex items-center gap-3">
-    <div class="w-48 text-center px-4 py-2.5 rounded-lg border-2 border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30 font-mono text-sm font-semibold text-blue-800 dark:text-blue-300">
-      PostgreSQL
-    </div>
-    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400">NEW</span>
-  </div>
+# Sorting Without Pagination
 
-</div>
+```java
+// Use Sort directly — no page wrapping:
+List<Task> tasks = taskRepository.findAll(Sort.by("title").ascending());
+// → SELECT * FROM tasks ORDER BY title ASC
 
-<div class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-  Controller and service untouched — only the repository layer swapped out.
-</div>
+// In controller:
+@GetMapping
+public ResponseEntity<List<TaskResponse>> getTasks(
+        @RequestParam(defaultValue = "createdAt") String sortBy,
+        @RequestParam(defaultValue = "desc") String direction) {
+
+    Sort sort = direction.equalsIgnoreCase("asc")
+        ? Sort.by(sortBy).ascending()
+        : Sort.by(sortBy).descending();
+
+    return ResponseEntity.ok(
+        taskRepository.findAll(sort).stream()
+            .map(taskMapper::toTaskResponse).toList()
+    );
+}
+```
+
+---
+zoom: 0.85
+---
+
+# Derived Queries + Pageable
+
+Derived query methods also accept `Pageable`:
+
+```java
+public interface TaskRepository extends JpaRepository<Task, Long> {
+
+    // Paginated filter by completed:
+    Page<Task> findByCompleted(boolean completed, Pageable pageable);
+
+    // Sorted list of incomplete tasks:
+    List<Task> findByCompletedOrderByCreatedAtDesc(boolean completed);
+
+    // Paginated + sorted by method name:
+    Page<Task> findByCompleted(boolean completed, Pageable pageable);
+}
+```
+
+```sql
+-- findByCompleted(false, PageRequest.of(0, 5)):
+SELECT * FROM tasks WHERE completed = false LIMIT 5 OFFSET 0;
+SELECT COUNT(*) FROM tasks WHERE completed = false;
+```
+
+---
+
+# Pagination Summary
+
+| Class | Purpose |
+|-------|---------|
+| `PageRequest.of(page, size)` | Create a `Pageable` for a given page and size |
+| `PageRequest.of(page, size, sort)` | Add sorting to a pageable |
+| `Sort.by("field").descending()` | Create a sort descriptor |
+| `Page<T>` | Return type — wraps List + metadata |
+| `page.getContent()` | Extract the `List<T>` from the page |
+| `page.getTotalElements()` | Total row count across all pages |
+
+<v-click>
+
+**SQL bridge:** `PageRequest.of(1, 10)` → `LIMIT 10 OFFSET 10`. Spring Data writes the SQL; you write Java.
+
+</v-click>

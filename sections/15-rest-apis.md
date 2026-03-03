@@ -1,64 +1,132 @@
 ---
 layout: center
 ---
-# One-to-Many: Task → Comment
+# REST APIs & JPA
 
-## Nested Relationships with JPA
+## DTOs, Serialization, and Avoiding Common Pitfalls
 
 ---
 
-# The Relationship
+# Why DTOs Matter Even More With JPA
 
-Each task can have many comments. Each comment belongs to exactly one task.
+With in-memory storage, returning your model directly was low-risk.
 
-```sql
-CREATE TABLE comments (
-    id          BIGSERIAL    PRIMARY KEY,
-    content     TEXT         NOT NULL,
-    created_at  TIMESTAMP    NOT NULL DEFAULT NOW(),
-    task_id     BIGINT       REFERENCES tasks(id)
-);
+With JPA entities, returning them directly causes problems:
+
+```java
+// ❌ Returning the entity directly:
+@GetMapping("/{id}")
+public ResponseEntity<Task> getTask(@PathVariable Long id) {
+    return ResponseEntity.ok(taskRepository.findById(id).orElseThrow());
+}
 ```
 
-```sql
--- Get all comments for task 3:
-SELECT * FROM comments WHERE task_id = 3 ORDER BY created_at ASC;
+Problems:
+- Exposes internal DB column names and lazy relationships
+- Can trigger `LazyInitializationException` during JSON serialization
+- If Task has a `Project` with `List<Task>`, Jackson serializes **infinitely**
+
+---
+
+# The DTO Pattern (Already in Your Project)
+
+You already use DTOs via MapStruct. This is the right pattern:
+
+```java
+// ✅ Controller returns DTO, not entity:
+@GetMapping("/{id}")
+public ResponseEntity<TaskResponse> getTask(@PathVariable Long id) {
+    Task task = taskRepository.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    return ResponseEntity.ok(taskMapper.toTaskResponse(task));
+}
 ```
+
+`TaskResponse` is a plain POJO — no JPA proxies, no lazy-loading triggers, safe to serialize.
 
 ---
 zoom: 0.85
 ---
 
-# Comment.java
+# What TaskResponse Looks Like
 
 ```java
-package com.chetraseng.sunrise_task_flow_api.model;
-
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "comments")
+// Your existing TaskResponse.java:
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class Comment {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class TaskResponse {
     private Long id;
-
-    private String content;
-
-    @CreationTimestamp
+    private String title;
+    private String description;
+    private Boolean completed;
     private LocalDateTime createdAt;
+}
+```
 
-    @ManyToOne
-    @JoinColumn(name = "task_id")
-    private Task task;
+This has **no JPA annotations**, no entity references, no lazy relationships.
+
+Jackson serializes this cleanly every time.
+
+---
+
+# Infinite Recursion Problem
+
+Once you add relationships (Project → Task → Project → Task...), returning entities breaks:
+
+```java
+// Project has List<Task> tasks
+// Task has Project project
+// Jackson follows the graph → StackOverflowError
+```
+
+Even with `@JsonIgnore` it's fragile. The real fix: **always use DTOs**.
+
+```java
+// ✅ ProjectResponse DTO — no Task references:
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProjectResponse {
+    private Long id;
+    private String name;
+    private String description;
+    private LocalDateTime createdAt;
+    // No List<Task> — if you need tasks, add a separate endpoint
+}
+```
+
+---
+
+# Nested DTOs for Relationships
+
+When the client needs related data, include it in the response DTO:
+
+```java
+// TaskResponse that includes project name (not the full Project entity):
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TaskResponse {
+    private Long id;
+    private String title;
+    private String description;
+    private Boolean completed;
+    private LocalDateTime createdAt;
+    private Long projectId;       // just the FK — no Project object
+    private String projectName;   // denormalized for display convenience
+}
+```
+
+MapStruct can map `task.project.id` and `task.project.name` automatically:
+
+```java
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+public interface TaskMapper {
+
+    @Mapping(target = "projectId", source = "project.id")
+    @Mapping(target = "projectName", source = "project.name")
+    TaskResponse toTaskResponse(Task task);
 }
 ```
 
@@ -66,175 +134,98 @@ public class Comment {
 zoom: 0.85
 ---
 
-# Update Task.java — Add Comments
+# Handling 404 the Right Way
+
+When an entity is not found, throw a `ResponseStatusException` — Spring converts it to the right HTTP status automatically:
 
 ```java
-@Entity
-@Table(name = "tasks")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
-public class Task {
+// In TaskServiceImpl.java:
+@Transactional(readOnly = true)
+public TaskResponse findById(Long id) {
+    return taskRepository.findById(id)
+        .map(taskMapper::toTaskResponse)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Task not found: " + id
+        ));
+}
+```
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+```bash
+curl http://localhost:9999/api/tasks/999
+# → HTTP 404
+# {"status":404,"error":"Not Found","message":"Task not found: 999"}
+```
 
+---
+
+# Request DTO Validation
+
+Your `TaskRequest` DTO is the entry point for client data — validate it:
+
+```java
+// pom.xml — add:
+// spring-boot-starter-validation
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TaskRequest {
+
+    @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Title must be 255 characters or less")
     private String title;
+
     private String description;
-    private Boolean completed = false;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @ManyToOne
-    @JoinColumn(name = "project_id")
-    private Project project;
-
-    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL)
-    @JsonIgnore
-    private List<Comment> comments;    // ← new
 }
 ```
-
----
-
-# CommentRepository
 
 ```java
-package com.chetraseng.sunrise_task_flow_api.repository;
-
-import com.chetraseng.sunrise_task_flow_api.model.Comment;
-import com.chetraseng.sunrise_task_flow_api.model.Task;
-import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.List;
-
-public interface CommentRepository extends JpaRepository<Comment, Long> {
-
-    List<Comment> findByTask(Task task);
-    List<Comment> findByTaskId(Long taskId);
-
-}
-```
-
-```sql
--- findByTaskId(3L):
-SELECT * FROM comments WHERE task_id = 3
-```
-
----
-
-# Comment DTOs
-
-```java
-// Input: client sends only content
-@Data @NoArgsConstructor @AllArgsConstructor
-public class CommentRequest {
-    private String content;
-}
-
-// Output: system returns id, content, createdAt
-@Data @NoArgsConstructor @AllArgsConstructor
-public class CommentResponse {
-    private Long id;
-    private String content;
-    private LocalDateTime createdAt;
-    private Long taskId;
-}
-```
-
----
-
-# CommentMapper
-
-```java
-package com.chetraseng.sunrise_task_flow_api.mapper;
-
-import com.chetraseng.sunrise_task_flow_api.dto.CommentResponse;
-import com.chetraseng.sunrise_task_flow_api.model.Comment;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingConstants;
-
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
-public interface CommentMapper {
-
-    @Mapping(target = "taskId", source = "task.id")
-    CommentResponse toCommentResponse(Comment comment);
-
-}
-```
-
-`task.id` → the ID from the nested `Task` object. MapStruct traverses the relationship.
-
----
-zoom: 0.8
----
-
-# CommentController — Nested Routes
-
-```java
-@RestController
-@RequiredArgsConstructor
-@RequestMapping("/api/tasks/{taskId}/comments")
-public class CommentController {
-
-    private final CommentRepository commentRepository;
-    private final TaskRepository taskRepository;
-    private final CommentMapper commentMapper;
-
-    @GetMapping
-    public ResponseEntity<List<CommentResponse>> getComments(@PathVariable Long taskId) {
-        if (!taskRepository.existsById(taskId)) {
-            return ResponseEntity.notFound().build();
-        }
-        List<CommentResponse> comments = commentRepository.findByTaskId(taskId)
-            .stream().map(commentMapper::toCommentResponse).toList();
-        return ResponseEntity.ok(comments);
-    }
-}
-```
-
----
-zoom: 0.8
----
-
-# Adding a Comment
-
-```java
+// In controller:
 @PostMapping
-public ResponseEntity<CommentResponse> addComment(
-        @PathVariable Long taskId,
-        @RequestBody CommentRequest request) {
-
-    Task task = taskRepository.findById(taskId)
-        .orElse(null);
-    if (task == null) return ResponseEntity.notFound().build();
-
-    Comment comment = Comment.builder()
-        .content(request.getContent())
-        .task(task)          // ← set the FK relationship
-        .build();
-
-    Comment saved = commentRepository.save(comment);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(commentMapper.toCommentResponse(saved));
-}
+public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskRequest request) { ... }
 ```
 
-```sql
--- JPA runs:
-INSERT INTO comments (content, created_at, task_id) VALUES ('...', NOW(), 3);
+Validation happens before the request reaches the service or database.
+
+---
+zoom: 0.85
+---
+
+# Endpoint Design with JPA
+
+Consistent URL patterns for related resources:
+
 ```
+GET    /api/tasks                    → list all tasks (with optional ?completed=)
+GET    /api/tasks/{id}               → get task by ID
+POST   /api/tasks                    → create task
+PUT    /api/tasks/{id}               → update task
+PATCH  /api/tasks/{id}/complete      → mark as complete
+DELETE /api/tasks/{id}               → delete task
+
+GET    /api/projects                 → list projects
+GET    /api/projects/{id}            → get project
+POST   /api/projects                 → create project
+GET    /api/projects/{id}/tasks      → tasks for a project (nested resource)
+
+POST   /api/tasks/{id}/comments      → add comment to task
+GET    /api/tasks/{id}/comments      → list comments for task
+```
+
+Nested routes (`/projects/{id}/tasks`) are natural when the child resource only makes sense in context of the parent.
 
 ---
 
-# Pattern Recap: Three Levels Deep
+# REST + JPA Integration Checklist
 
-```
-Project  ──(has many)──▶  Task  ──(has many)──▶  Comment
-  @OneToMany               @OneToMany               @ManyToOne
-  mappedBy="project"       mappedBy="task"          @JoinColumn(task_id)
-                 @ManyToOne
-                 @JoinColumn(project_id)
-```
+<v-clicks>
 
-Every `@OneToMany` has a matching `@ManyToOne` on the other side. The FK column always lives on the "many" side.
+- **Never return JPA entities directly** from controllers — always use DTOs
+- **Use MapStruct** to map entity → DTO (you already have `TaskMapper`)
+- **@Transactional(readOnly = true)** on all GET service methods
+- **@Transactional** on all write service methods (create, update, delete)
+- **ResponseStatusException** for 404/400 — Spring maps it to HTTP automatically
+- **show-sql=true** in dev to verify the SQL your endpoints generate
+- **Page&lt;T&gt;** for list endpoints that could return many rows
+
+</v-clicks>

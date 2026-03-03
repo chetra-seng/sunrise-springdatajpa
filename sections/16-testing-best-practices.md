@@ -1,93 +1,138 @@
 ---
 layout: center
 ---
-# Many-to-Many: Task ↔ Tag
+# Testing Spring Data JPA
 
-## @ManyToMany and Join Tables
-
----
-
-# The Relationship
-
-A task can have many tags. A tag can apply to many tasks.
-
-```
-Tag: "backend"   → Task 1, Task 3
-Tag: "urgent"    → Task 2
-Tag: "review"    → Task 1, Task 2, Task 4
-```
-
-This requires a **join table** — a third table that stores the pairs.
-
-```sql
-CREATE TABLE task_tags (
-    task_id  BIGINT REFERENCES tasks(id),
-    tag_id   BIGINT REFERENCES tags(id),
-    PRIMARY KEY (task_id, tag_id)
-);
-```
+## @DataJpaTest, H2, and Repository Slice Tests
 
 ---
 
-# Tag.java
+# Two Kinds of Tests
+
+| | `@SpringBootTest` | `@DataJpaTest` |
+|-|------------------|----------------|
+| Starts | Full application context | JPA layer only |
+| Speed | Slow | Fast |
+| Good for | Integration tests (controller→DB) | Repository tests |
+| Database | Needs real DB or full config | H2 in-memory (auto-configured) |
+
+<v-click>
+
+For testing your `TaskRepository` methods, `@DataJpaTest` is the right tool — it's fast, isolated, and wires up only what you need.
+
+</v-click>
+
+---
+
+# H2 for Tests
+
+H2 is an in-memory database that mimics PostgreSQL syntax well enough for testing.
+
+Add it to `pom.xml` in **test scope only**:
+
+```xml
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+And configure it in `src/test/resources/application.properties`:
+
+```properties
+spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+```
+
+Each test run creates a fresh schema. No leftover data.
+
+---
+zoom: 0.85
+---
+
+# Your First @DataJpaTest
 
 ```java
-package com.chetraseng.sunrise_task_flow_api.model;
+package com.chetraseng.sunrise_task_flow_api.repository;
 
-import jakarta.persistence.*;
-import lombok.*;
+import com.chetraseng.sunrise_task_flow_api.model.Task;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
-@Entity
-@Table(name = "tags")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Tag {
+import java.util.List;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+import static org.assertj.core.api.Assertions.assertThat;
 
-    @Column(unique = true, nullable = false)
-    private String name;
+@DataJpaTest
+class TaskRepositoryTest {
+
+    @Autowired
+    private TaskRepository taskRepository;
+
+    @Test
+    void findByCompleted_returnsOnlyMatchingTasks() {
+        taskRepository.save(Task.builder().title("Done task").completed(true).build());
+        taskRepository.save(Task.builder().title("Open task").completed(false).build());
+
+        List<Task> completed = taskRepository.findByCompleted(true);
+
+        assertThat(completed).hasSize(1);
+        assertThat(completed.get(0).getTitle()).isEqualTo("Done task");
+    }
 }
 ```
 
 ---
-zoom: 0.8
----
 
-# Update Task.java — Add Tags
+# What @DataJpaTest Does
 
 ```java
-@Entity
-@Table(name = "tasks")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
-public class Task {
+@DataJpaTest
+class TaskRepositoryTest { ... }
+```
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+Spring Boot automatically:
+- Starts only the JPA/Hibernate layer (no web layer, no full context)
+- Replaces the real datasource with H2
+- Creates the schema from your `@Entity` classes
+- Wraps each test in a transaction and **rolls it back** after — no persistent state between tests
 
-    private String title;
-    private String description;
-    private Boolean completed = false;
+<v-click>
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+You don't need `@Autowired EntityManager` or `@DirtiesContext`. `@DataJpaTest` handles isolation for you.
 
-    @ManyToOne
-    @JoinColumn(name = "project_id")
-    private Project project;
+</v-click>
 
-    @ManyToMany
-    @JoinTable(
-        name = "task_tags",
-        joinColumns = @JoinColumn(name = "task_id"),
-        inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
-    private List<Tag> tags = new ArrayList<>();    // ← new
+---
+zoom: 0.85
+---
+
+# Testing findById — Present and Absent
+
+```java
+@Test
+void findById_returnsTask_whenExists() {
+    Task saved = taskRepository.save(
+        Task.builder().title("Test task").completed(false).build()
+    );
+
+    Optional<Task> found = taskRepository.findById(saved.getId());
+
+    assertThat(found).isPresent();
+    assertThat(found.get().getTitle()).isEqualTo("Test task");
+}
+
+@Test
+void findById_returnsEmpty_whenNotFound() {
+    Optional<Task> found = taskRepository.findById(999L);
+
+    assertThat(found).isEmpty();
 }
 ```
 
@@ -95,167 +140,117 @@ public class Task {
 zoom: 0.85
 ---
 
-# @JoinTable Explained
+# Testing Save and Delete
 
 ```java
-@ManyToMany
-@JoinTable(
-    name = "task_tags",               // the join table name in the DB
-    joinColumns = @JoinColumn(name = "task_id"),         // FK to THIS entity (Task)
-    inverseJoinColumns = @JoinColumn(name = "tag_id")    // FK to OTHER entity (Tag)
-)
-private List<Tag> tags;
+@Test
+void save_persistsTask() {
+    Task task = Task.builder()
+        .title("Persist this")
+        .completed(false)
+        .build();
+
+    Task saved = taskRepository.save(task);
+
+    assertThat(saved.getId()).isNotNull();       // ID generated by DB
+    assertThat(saved.getTitle()).isEqualTo("Persist this");
+}
+
+@Test
+void deleteById_removesTask() {
+    Task saved = taskRepository.save(
+        Task.builder().title("To delete").completed(false).build()
+    );
+
+    taskRepository.deleteById(saved.getId());
+
+    assertThat(taskRepository.findById(saved.getId())).isEmpty();
+}
 ```
+
+---
+zoom: 0.85
+---
+
+# Testing Custom Derived Queries
+
+Custom methods need tests too — derived queries can have typos that only fail at runtime:
+
+```java
+@Test
+void findByCompleted_returnsBothGroups() {
+    taskRepository.save(Task.builder().title("A").completed(true).build());
+    taskRepository.save(Task.builder().title("B").completed(true).build());
+    taskRepository.save(Task.builder().title("C").completed(false).build());
+
+    List<Task> completedTasks = taskRepository.findByCompleted(true);
+    List<Task> openTasks     = taskRepository.findByCompleted(false);
+
+    assertThat(completedTasks).hasSize(2);
+    assertThat(openTasks).hasSize(1);
+}
+```
+
+```sql
+-- @DataJpaTest runs this against H2:
+SELECT * FROM tasks WHERE completed = true;
+SELECT * FROM tasks WHERE completed = false;
+```
+
+---
+
+# TestEntityManager
+
+`@DataJpaTest` also gives you `TestEntityManager` for seeding data:
+
+```java
+@Autowired
+private TestEntityManager entityManager;
+
+@Test
+void findByCompleted_withEntityManager() {
+    entityManager.persist(Task.builder().title("Done").completed(true).build());
+    entityManager.flush();   // forces INSERT immediately
+
+    List<Task> results = taskRepository.findByCompleted(true);
+
+    assertThat(results).hasSize(1);
+}
+```
+
+`TestEntityManager.persist()` + `flush()` is useful when you need fine control over when the SQL runs.
+
+---
+
+# What NOT to Test Here
+
+`@DataJpaTest` tests the **repository layer only**:
+
+```java
+// ✅ Test this with @DataJpaTest:
+taskRepository.findByCompleted(true)
+taskRepository.save(task)
+taskRepository.deleteById(id)
+
+// ❌ Don't test these here (use @SpringBootTest or MockMvc):
+taskController.create(...)       // HTTP layer
+taskServiceImpl.complete(...)    // service logic (use @ExtendWith + mocks)
+```
+
+Each layer has its own testing strategy. Repository tests verify the SQL queries work; service tests verify the business logic.
+
+---
+
+# Testing Summary
+
+| Annotation | Tests | DB |
+|------------|-------|----|
+| `@DataJpaTest` | Repository methods, derived queries | H2 in-memory |
+| `@SpringBootTest` | Full integration (controller → DB) | H2 or real DB |
+| `@ExtendWith(MockitoExtension.class)` | Service logic (mock repository) | None |
 
 <v-click>
 
-JPA creates this SQL schema:
-```sql
-CREATE TABLE task_tags (
-    task_id BIGINT REFERENCES tasks(id),
-    tag_id  BIGINT REFERENCES tags(id),
-    PRIMARY KEY (task_id, tag_id)
-);
-```
+**Best practice:** Use `@DataJpaTest` for all `TaskRepository` method tests. They run fast, are isolated, and catch query bugs before they reach production.
 
 </v-click>
-
----
-
-# TagRepository
-
-```java
-package com.chetraseng.sunrise_task_flow_api.repository;
-
-import com.chetraseng.sunrise_task_flow_api.model.Tag;
-import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
-
-public interface TagRepository extends JpaRepository<Tag, Long> {
-
-    Optional<Tag> findByName(String name);
-
-}
-```
-
-```sql
--- findByName("urgent"):
-SELECT * FROM tags WHERE name = 'urgent'
-```
-
----
-
-# Attaching a Tag to a Task
-
-```java
-// In a TagService or TaskTagService:
-@Transactional
-public void attachTag(Long taskId, Long tagId) {
-    Task task = taskRepository.findById(taskId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-    Tag tag = tagRepository.findById(tagId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-    task.getTags().add(tag);
-    taskRepository.save(task);   // ← saves the join table row
-}
-```
-
-```sql
--- JPA runs:
-INSERT INTO task_tags (task_id, tag_id) VALUES (1, 2);
-```
-
----
-
-# Querying Tasks by Tag
-
-```java
-// TaskRepository — find tasks with a specific tag:
-public interface TaskRepository extends JpaRepository<Task, Long> {
-
-    List<Task> findByCompleted(boolean completed);
-    List<Task> findByProjectId(Long projectId);
-
-    @Query("SELECT t FROM Task t JOIN t.tags tag WHERE tag.name = :tagName")
-    List<Task> findByTagName(@Param("tagName") String tagName);
-}
-```
-
-```sql
--- Generated SQL:
-SELECT t.* FROM tasks t
-JOIN task_tags tt ON t.id = tt.task_id
-JOIN tags tag ON tt.tag_id = tag.id
-WHERE tag.name = 'urgent'
-```
-
----
-
-# Bridge: HashMap&lt;Long, Set&lt;Long&gt;&gt; → @ManyToMany
-
-```java
-// Before (Phase 1): manual junction with in-memory Map
-private Map<Long, Set<Long>> taskTags = new ConcurrentHashMap<>();
-taskTags.computeIfAbsent(taskId, k -> new HashSet<>()).add(tagId);
-
-// After (JPA): @ManyToMany manages the join table
-task.getTags().add(tag);
-taskRepository.save(task);
-// → INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)
-```
-
-The logic is the same. JPA manages the join table automatically.
-
----
-
-# Full Entity Relationship Diagram
-
-<Transform :scale="0.45" class="text-center">
-
-```mermaid
-erDiagram
-    PROJECT ||--o{ TASK : "has many"
-    TASK ||--o{ COMMENT : "has many"
-    TASK }o--o{ TAG : "via task_tags"
-
-    PROJECT {
-        Long id
-        String name
-        String description
-        LocalDateTime createdAt
-    }
-    TASK {
-        Long id
-        String title
-        String description
-        Boolean completed
-        LocalDateTime createdAt
-        Long project_id
-    }
-    COMMENT {
-        Long id
-        String content
-        LocalDateTime createdAt
-        Long task_id
-    }
-    TAG {
-        Long id
-        String name
-    }
-```
-
-</Transform>
-
----
-
-# Relationships Summary
-
-| From | To | Annotation (owning side) | SQL |
-|------|----|--------------------------|-----|
-| Task | Project | `@ManyToOne @JoinColumn(project_id)` | FK column in tasks |
-| Project | Task | `@OneToMany(mappedBy="project")` | no new column |
-| Comment | Task | `@ManyToOne @JoinColumn(task_id)` | FK column in comments |
-| Task | Comment | `@OneToMany(mappedBy="task")` | no new column |
-| Task | Tag | `@ManyToMany @JoinTable(task_tags)` | join table |
