@@ -58,11 +58,11 @@ zoom: 0.85
 `JpaRepository` supports `Pageable` out of the box:
 
 ```java
-// Returns a Page<Task> — not just a List
-Page<Task> page = taskRepository.findAll(pageable);
+// Returns a Page<TaskModel> — not just a List
+Page<TaskModel> page = taskRepository.findAll(pageable);
 
 // Page<T> gives you:
-page.getContent()        // List<Task> — the current page's rows
+page.getContent()        // List<TaskModel> — the current page's rows
 page.getTotalElements()  // long — total rows in the DB
 page.getTotalPages()     // int  — total number of pages
 page.getNumber()         // int  — current page number (0-indexed)
@@ -146,7 +146,7 @@ Sort sort = Sort.by("completed").ascending()
 
 ```java
 // Use Sort directly — no page wrapping:
-List<Task> tasks = taskRepository.findAll(Sort.by("title").ascending());
+List<TaskModel> tasks = taskRepository.findAll(Sort.by("title").ascending());
 // → SELECT * FROM tasks ORDER BY title ASC
 
 // In controller:
@@ -175,16 +175,16 @@ zoom: 0.85
 Derived query methods also accept `Pageable`:
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
 
     // Paginated filter by completed:
-    Page<Task> findByCompleted(boolean completed, Pageable pageable);
+    Page<TaskModel> findByCompleted(boolean completed, Pageable pageable);
 
     // Sorted list of incomplete tasks:
-    List<Task> findByCompletedOrderByCreatedAtDesc(boolean completed);
+    List<TaskModel> findByCompletedOrderByCreatedAtDesc(boolean completed);
 
     // Paginated + sorted by method name:
-    Page<Task> findByCompleted(boolean completed, Pageable pageable);
+    Page<TaskModel> findByCompleted(boolean completed, Pageable pageable);
 }
 ```
 

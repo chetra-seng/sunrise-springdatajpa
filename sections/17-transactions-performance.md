@@ -41,7 +41,7 @@ public class TaskServiceImpl implements TaskService {
 
     @Transactional          // ← Spring opens a transaction before this method
     public TaskResponse complete(Long id) {
-        Task task = taskRepository.findById(id)
+        TaskModel task = taskRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         task.setCompleted(true);
@@ -114,9 +114,9 @@ Benefits:
 **Scenario:** Load 10 tasks, each with a project. How many SQL queries run?
 
 ```java
-List<Task> tasks = taskRepository.findAll();  // 1 query
+List<TaskModel> tasks = taskRepository.findAll();  // 1 query
 
-for (Task task : tasks) {
+for (TaskModel task : tasks) {
     System.out.println(task.getProject().getName());  // 1 query PER task
 }
 ```
@@ -141,13 +141,13 @@ SELECT * FROM projects WHERE id = 3;        -- for task 3
 // Default for @ManyToOne — EAGER (loads immediately):
 @ManyToOne(fetch = FetchType.EAGER)
 @JoinColumn(name = "project_id")
-private Project project;
+private ProjectModel project;
 // → Always JOINs project when loading task
 
 // LAZY — load only when accessed:
 @ManyToOne(fetch = FetchType.LAZY)
 @JoinColumn(name = "project_id")
-private Project project;
+private ProjectModel project;
 // → Loads project only if you call task.getProject()
 ```
 
@@ -166,10 +166,10 @@ zoom: 0.85
 Use `@Query` with `JOIN FETCH` to load relationships in one query:
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
 
-    @Query("SELECT t FROM Task t LEFT JOIN FETCH t.project")
-    List<Task> findAllWithProject();
+    @Query("SELECT t FROM TaskModel t LEFT JOIN FETCH t.project")
+    List<TaskModel> findAllWithProject();
 
 }
 ```
@@ -221,7 +221,7 @@ If you see the same query repeated, fix it with `JOIN FETCH`.
 ```java
 // ❌ This fails with LazyInitializationException:
 public TaskResponse findById(Long id) {
-    Task task = taskRepository.findById(id).orElseThrow();
+    TaskModel task = taskRepository.findById(id).orElseThrow();
     // Transaction closes here after findById returns
     return task.getProject().getName();  // BOOM — session already closed
 }
@@ -229,7 +229,7 @@ public TaskResponse findById(Long id) {
 // ✅ Keep @Transactional open for the whole method:
 @Transactional(readOnly = true)
 public TaskResponse findById(Long id) {
-    Task task = taskRepository.findById(id).orElseThrow();
+    TaskModel task = taskRepository.findById(id).orElseThrow();
     return task.getProject().getName();  // ✓ session still open
 }
 ```

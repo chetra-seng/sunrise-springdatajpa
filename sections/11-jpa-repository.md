@@ -7,19 +7,19 @@ layout: center
 
 ---
 
-# JpaRepository&lt;Task, Long&gt;
+# JpaRepository&lt;TaskModel, Long&gt;
 
 The two type parameters tell Spring what you're storing:
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
     //                                                 ^^^^ ^^^^
     //                                           entity type  ID type
 }
 ```
 
-- `Task` → the `@Entity` class this repository manages
-- `Long` → the type of the `@Id` field in `Task`
+- `TaskModel` → the `@Entity` class this repository manages
+- `Long` → the type of the `@Id` field in `TaskModel`
 
 ---
 
@@ -29,13 +29,13 @@ All of these work without writing any code:
 
 ```java
 // Read
-List<Task> tasks = taskRepository.findAll();
-Optional<Task> task = taskRepository.findById(1L);
+List<TaskModel> tasks = taskRepository.findAll();
+Optional<TaskModel> task = taskRepository.findById(1L);
 boolean exists = taskRepository.existsById(1L);
 long count = taskRepository.count();
 
 // Write
-Task saved = taskRepository.save(task);       // INSERT if id==null, UPDATE if id exists
+TaskModel saved = taskRepository.save(task);       // INSERT if id==null, UPDATE if id exists
 taskRepository.saveAll(listOfTasks);
 
 // Delete
@@ -50,7 +50,7 @@ taskRepository.deleteAll();
 
 ```java
 // Our old TaskRepository.save():
-public Task save(Task task) {
+public TaskModel save(TaskModel task) {
     if (task.getId() == null) {
         task.setId(counter.incrementAndGet());  // INSERT
     }
@@ -69,9 +69,9 @@ The service code doesn't change because `save()` behaves identically.
 
 ```java
 // TaskServiceImpl.create() — unchanged:
-Task task = new Task();
+TaskModel task = new TaskModel();
 task.setTitle(title);
-Task savedTask = taskRepository.save(task);  // works with both repositories
+TaskModel savedTask = taskRepository.save(task);  // works with both repositories
 ```
 
 </v-click>
@@ -119,10 +119,10 @@ public boolean delete(Long id) {
 JpaRepository handles standard CRUD. Add your own methods for anything else:
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
 
     // Spring generates: SELECT * FROM tasks WHERE completed = ?
-    List<Task> findByCompleted(boolean completed);
+    List<TaskModel> findByCompleted(boolean completed);
 
 }
 ```

@@ -16,7 +16,7 @@ With JPA entities, returning them directly causes problems:
 ```java
 // ❌ Returning the entity directly:
 @GetMapping("/{id}")
-public ResponseEntity<Task> getTask(@PathVariable Long id) {
+public ResponseEntity<TaskModel> getTask(@PathVariable Long id) {
     return ResponseEntity.ok(taskRepository.findById(id).orElseThrow());
 }
 ```
@@ -24,7 +24,7 @@ public ResponseEntity<Task> getTask(@PathVariable Long id) {
 Problems:
 - Exposes internal DB column names and lazy relationships
 - Can trigger `LazyInitializationException` during JSON serialization
-- If Task has a `Project` with `List<Task>`, Jackson serializes **infinitely**
+- If Task has a `ProjectModel` with `List<TaskModel>`, Jackson serializes **infinitely**
 
 ---
 
@@ -36,7 +36,7 @@ You already use DTOs via MapStruct. This is the right pattern:
 // ✅ Controller returns DTO, not entity:
 @GetMapping("/{id}")
 public ResponseEntity<TaskResponse> getTask(@PathVariable Long id) {
-    Task task = taskRepository.findById(id)
+    TaskModel task = taskRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     return ResponseEntity.ok(taskMapper.toTaskResponse(task));
 }
@@ -75,8 +75,8 @@ Jackson serializes this cleanly every time.
 Once you add relationships (Project → Task → Project → Task...), returning entities breaks:
 
 ```java
-// Project has List<Task> tasks
-// Task has Project project
+// Project has List<TaskModel> tasks
+// Task has ProjectModel project
 // Jackson follows the graph → StackOverflowError
 ```
 
@@ -92,7 +92,7 @@ public class ProjectResponse {
     private String name;
     private String description;
     private LocalDateTime createdAt;
-    // No List<Task> — if you need tasks, add a separate endpoint
+    // No List<TaskModel> — if you need tasks, add a separate endpoint
 }
 ```
 
@@ -100,10 +100,10 @@ public class ProjectResponse {
 
 # Nested DTOs for Relationships
 
-When the client needs related data, include it in the response DTO:
+When the client needs related data, include it flat in the response DTO — not as a nested entity:
 
 ```java
-// TaskResponse that includes project name (not the full Project entity):
+// TaskResponse — includes project fields, not the ProjectModel entity:
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -113,30 +113,58 @@ public class TaskResponse {
     private String description;
     private Boolean completed;
     private LocalDateTime createdAt;
-    private Long projectId;       // just the FK — no Project object
-    private String projectName;   // denormalized for display convenience
+    private Long projectId;       // just the FK — no ProjectModel object
+    private String projectName;   // flattened for display convenience
 }
 ```
 
-MapStruct can map `task.project.id` and `task.project.name` automatically:
+No `ProjectModel` reference — nothing for Jackson to follow into an infinite loop.
+
+---
+
+# Nested DTOs — MapStruct Mapping
+
+MapStruct traverses the relationship automatically using dot notation:
 
 ```java
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface TaskMapper {
 
-    @Mapping(target = "projectId", source = "project.id")
+    @Mapping(target = "projectId",   source = "project.id")
     @Mapping(target = "projectName", source = "project.name")
-    TaskResponse toTaskResponse(Task task);
+    TaskResponse toTaskResponse(TaskModel task);
+
+}
+```
+
+`source = "project.id"` tells MapStruct: go into `task.getProject()`, then call `.getId()`.
+
+```json
+{
+  "id": 1,
+  "title": "Set up DB",
+  "projectId": 5,
+  "projectName": "Task Flow API"
 }
 ```
 
 ---
-zoom: 0.85
----
 
-# Handling 404 the Right Way
+# Handling 404 — Custom Exception
 
-When an entity is not found, throw a `ResponseStatusException` — Spring converts it to the right HTTP status automatically:
+Define a custom exception in `exception/ResourceNotFoundException.java`:
+
+```java
+package com.chetraseng.sunrise_task_flow_api.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+```
+
+Throw it from the service — no HTTP knowledge needed here:
 
 ```java
 // In TaskServiceImpl.java:
@@ -144,48 +172,66 @@ When an entity is not found, throw a `ResponseStatusException` — Spring conver
 public TaskResponse findById(Long id) {
     return taskRepository.findById(id)
         .map(taskMapper::toTaskResponse)
-        .orElseThrow(() -> new ResponseStatusException(
-            HttpStatus.NOT_FOUND, "Task not found: " + id
-        ));
+        .orElseThrow(() -> new ResourceNotFoundException("Task not found: " + id));
 }
 ```
 
-```bash
-curl http://localhost:9999/api/tasks/999
-# → HTTP 404
-# {"status":404,"error":"Not Found","message":"Task not found: 999"}
+---
+zoom: 0.85
+---
+
+# Handling 404 — GlobalExceptionHandler
+
+`ErrorResponse.java` — the shape of every error response:
+
+```java
+public class ErrorResponse {
+    private final int status;
+    private final String message;
+    private final LocalDateTime timestamp;
+    // constructor + getters
+}
+```
+
+`GlobalExceptionHandler.java` — catches exceptions across all controllers:
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleResourceNotFoundException(ResourceNotFoundException ex) {
+        return new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage(), LocalDateTime.now());
+    }
+
+}
 ```
 
 ---
 
-# Request DTO Validation
+# Handling 404 — How It Flows
 
-Your `TaskRequest` DTO is the entry point for client data — validate it:
+```
+Service throws ResourceNotFoundException("Task not found: 999")
+         ↓
+GlobalExceptionHandler catches it
+         ↓
+Returns ErrorResponse(404, "Task not found: 999", timestamp)
+```
 
-```java
-// pom.xml — add:
-// spring-boot-starter-validation
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class TaskRequest {
-
-    @NotBlank(message = "Title is required")
-    @Size(max = 255, message = "Title must be 255 characters or less")
-    private String title;
-
-    private String description;
+```bash
+curl http://localhost:9999/api/tasks/999
+```
+```json
+{
+  "status": 404,
+  "message": "Task not found: 999",
+  "timestamp": "2026-03-03T10:00:00"
 }
 ```
 
-```java
-// In controller:
-@PostMapping
-public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskRequest request) { ... }
-```
-
-Validation happens before the request reaches the service or database.
+The service only knows about domain errors. The handler only knows about HTTP. Clean separation.
 
 ---
 zoom: 0.85

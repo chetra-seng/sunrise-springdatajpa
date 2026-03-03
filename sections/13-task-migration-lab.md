@@ -17,7 +17,7 @@ You have a working Task API. Right now it stores tasks in a `ConcurrentHashMap` 
 
 **Three files change:**
 - `pom.xml` — add JPA + PostgreSQL dependencies
-- `Task.java` — add JPA annotations
+- `TaskModel.java` — add JPA annotations
 - `TaskRepository.java` — replace the class with a JPA interface
 
 **Three files stay the same:**
@@ -87,9 +87,9 @@ psql -U postgres -c "CREATE DATABASE taskflow;"
 zoom: 0.85
 ---
 
-# Step 3 — Update Task.java
+# Step 3 — Update TaskModel.java
 
-Open `Task.java` and add JPA annotations. The fields don't change — only the annotations do.
+Open `TaskModel.java` and add JPA annotations. The fields don't change — only the annotations do.
 
 ```java
 package com.chetraseng.sunrise_task_flow_api.model;
@@ -105,7 +105,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -141,13 +141,13 @@ Delete everything in `TaskRepository.java` and replace with:
 ```java
 package com.chetraseng.sunrise_task_flow_api.repository;
 
-import com.chetraseng.sunrise_task_flow_api.model.Task;
+import com.chetraseng.sunrise_task_flow_api.model.TaskModel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
 
-    List<Task> findByCompleted(boolean completed);
+    List<TaskModel> findByCompleted(boolean completed);
 
 }
 ```

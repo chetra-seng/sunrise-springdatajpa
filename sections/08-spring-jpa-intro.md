@@ -113,12 +113,12 @@ To use JPA, three things need to happen:
 ```java
 @Entity
 @Table(name = "tasks")
-public class Task { ... }
+public class TaskModel { ... }
 ```
 
 **2. Replace your manual repository with a JPA interface:**
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> { }
+public interface TaskRepository extends JpaRepository<TaskModel, Long> { }
 ```
 
 **3. Configure the database connection:**
@@ -132,7 +132,7 @@ spring.datasource.url=jdbc:postgresql://localhost:5432/taskflow
 
 # What JPA Gives You for Free
 
-When `TaskRepository extends JpaRepository<Task, Long>`:
+When `TaskRepository extends JpaRepository<TaskModel, Long>`:
 
 ```java
 // These all exist without writing any code:
@@ -160,19 +160,19 @@ That's why the service doesn't need to change.
 // Before: a class you wrote yourself
 @Repository
 public class TaskRepository {
-    private Map<Long, Task> tasks = new ConcurrentHashMap<>();
+    private Map<Long, TaskModel> tasks = new ConcurrentHashMap<>();
     private AtomicLong counter = new AtomicLong(0);
 
-    public List<Task> findAll() { return tasks.values().stream().toList(); }
-    public Optional<Task> findById(Long id) { return Optional.ofNullable(tasks.get(id)); }
-    public Task save(Task task) { /* assign id + put in map */ }
+    public List<TaskModel> findAll() { return tasks.values().stream().toList(); }
+    public Optional<TaskModel> findById(Long id) { return Optional.ofNullable(tasks.get(id)); }
+    public TaskModel save(TaskModel task) { /* assign id + put in map */ }
     public Boolean delete(Long id) { /* containsKey + remove */ }
 }
 ```
 
 ```java
 // After: an interface Spring implements for you
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
     // All four methods above exist by default
     // Add custom queries as needed
 }
@@ -207,18 +207,3 @@ Use `update` in dev (safe, evolves the schema). Use `validate` or `none` in prod
 
 </v-click>
 
----
-
-# The Learning Path
-
-```
-SQL (done): SELECT, INSERT, JOINs, transactions
-     ↓
-JPA (now):  @Entity, JpaRepository, derived queries
-     ↓
-Migration:  swap TaskRepository, update Task.java
-     ↓
-Relationships: @OneToMany, @ManyToMany
-```
-
-Every JPA concept we learn maps directly to SQL we already understand.

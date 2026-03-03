@@ -12,9 +12,9 @@ layout: center
 Spring reads your method name and generates the SQL query automatically.
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
 
-    List<Task> findByCompleted(boolean completed);
+    List<TaskModel> findByCompleted(boolean completed);
 
 }
 ```
@@ -57,19 +57,19 @@ findByTitleContaining(String keyword)
 
 ```java
 // Exact match
-List<Task> findByTitle(String title);
+List<TaskModel> findByTitle(String title);
 // → WHERE title = ?
 
 // Contains (case-sensitive)
-List<Task> findByTitleContaining(String keyword);
+List<TaskModel> findByTitleContaining(String keyword);
 // → WHERE title LIKE '%keyword%'
 
 // Contains (case-insensitive)
-List<Task> findByTitleContainingIgnoreCase(String keyword);
+List<TaskModel> findByTitleContainingIgnoreCase(String keyword);
 // → WHERE LOWER(title) LIKE LOWER('%keyword%')
 
 // Starts with
-List<Task> findByTitleStartingWith(String prefix);
+List<TaskModel> findByTitleStartingWith(String prefix);
 // → WHERE title LIKE 'prefix%'
 ```
 
@@ -79,11 +79,11 @@ List<Task> findByTitleStartingWith(String prefix);
 
 ```java
 // Order by createdAt descending
-List<Task> findByCompletedOrderByCreatedAtDesc(boolean completed);
+List<TaskModel> findByCompletedOrderByCreatedAtDesc(boolean completed);
 // → SELECT * FROM tasks WHERE completed = ? ORDER BY created_at DESC
 
 // Order by title ascending
-List<Task> findAllByOrderByTitleAsc();
+List<TaskModel> findAllByOrderByTitleAsc();
 // → SELECT * FROM tasks ORDER BY title ASC
 ```
 
@@ -93,11 +93,11 @@ List<Task> findAllByOrderByTitleAsc();
 
 ```java
 // Both conditions must match (AND)
-List<Task> findByCompletedAndTitleContaining(boolean completed, String keyword);
+List<TaskModel> findByCompletedAndTitleContaining(boolean completed, String keyword);
 // → WHERE completed = ? AND title LIKE '%keyword%'
 
 // Either condition matches (OR)
-List<Task> findByCompletedOrTitle(boolean completed, String title);
+List<TaskModel> findByCompletedOrTitle(boolean completed, String title);
 // → WHERE completed = ? OR title = ?
 ```
 
@@ -111,15 +111,15 @@ This is the most important one for our Task API:
 
 ```java
 // TaskRepository.java — add this method:
-public interface TaskRepository extends JpaRepository<Task, Long> {
-    List<Task> findByCompleted(boolean completed);
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
+    List<TaskModel> findByCompleted(boolean completed);
 }
 ```
 
 ```java
 // TaskServiceImpl.java — use it:
 public List<TaskResponse> findAll(Boolean completed) {
-    List<Task> tasks = (completed != null)
+    List<TaskModel> tasks = (completed != null)
         ? taskRepository.findByCompleted(completed)
         : taskRepository.findAll();
     return tasks.stream().map(taskMapper::toTaskResponse).toList();
@@ -142,10 +142,10 @@ Derived queries can return different types:
 
 ```java
 // Returns a list (empty list if nothing found — never null)
-List<Task> findByCompleted(boolean completed);
+List<TaskModel> findByCompleted(boolean completed);
 
 // Returns an Optional (empty if not found)
-Optional<Task> findByTitle(String title);
+Optional<TaskModel> findByTitle(String title);
 
 // Returns a single object (throws if not found or multiple found)
 Task findOneByTitle(String title);
@@ -179,7 +179,7 @@ Derived query methods work well for simple filters. They get unwieldy fast when 
 
 ```java
 // Gets messy quickly:
-List<Task> findByCompletedAndTitleContainingAndProjectIdAndCreatedAtAfter(...);
+List<TaskModel> findByCompletedAndTitleContainingAndProjectIdAndCreatedAtAfter(...);
 ```
 
 Next up: `@Query` for custom JPQL and native SQL — and Spring Specifications for fully dynamic filters.

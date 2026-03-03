@@ -84,51 +84,51 @@ src: ./sections/08-spring-jpa-intro.md
 ---
 
 ---
-src: ./sections/09-entity-mapping.md
+src: ./sections/09-project-setup.md
 ---
 
 ---
-src: ./sections/10-jpa-relationships.md
+src: ./sections/10-entity-mapping.md
 ---
 
 ---
-src: ./sections/11-repositories.md
+src: ./sections/11-jpa-repository.md
 ---
 
 ---
-src: ./sections/12-query-methods.md
+src: ./sections/12-derived-queries.md
 ---
 
 ---
-src: ./sections/19-task-migration-lab.md
+src: ./sections/13-task-migration-lab.md
 ---
 
 ---
-src: ./sections/17-custom-queries.md
+src: ./sections/14-custom-queries.md
 ---
 
 ---
-src: ./sections/18-specifications.md
+src: ./sections/15-specifications.md
 ---
 
 ---
-src: ./sections/13-pagination-sorting.md
+src: ./sections/16-pagination-sorting.md
 ---
 
 ---
-src: ./sections/14-transactions-performance.md
+src: ./sections/17-transactions-performance.md
 ---
 
 ---
-src: ./sections/20-relationships.md
+src: ./sections/18-relationships.md
 ---
 
 ---
-src: ./sections/15-rest-apis.md
+src: ./sections/19-rest-apis.md
 ---
 
 ---
-src: ./sections/16-testing-best-practices.md
+src: ./sections/20-testing-best-practices.md
 ---
 
 ---
@@ -143,7 +143,7 @@ You've migrated a real Task Management API from in-memory storage to PostgreSQL 
 <div class="text-left pt-8">
 
 **What you changed:**
-- `Task.java` → added `@Entity`, `@Id`, `@GeneratedValue`, `@CreationTimestamp`
+- `TaskModel.java` → added `@Entity`, `@Id`, `@GeneratedValue`, `@CreationTimestamp`
 - `TaskRepository.java` → replaced `ConcurrentHashMap` class with `JpaRepository` interface
 - `pom.xml` → added `spring-boot-starter-data-jpa` + `postgresql`
 - `application.properties` → added datasource + JPA config

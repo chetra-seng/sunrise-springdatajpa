@@ -3,7 +3,7 @@ layout: center
 ---
 # @Entity Mapping
 
-## Turning Task.java into a Database Table
+## Turning TaskModel.java into a Database Table
 
 ---
 
@@ -27,7 +27,7 @@ You write Java. Hibernate writes SQL.
 
 ---
 
-# Task.java — Before → After
+# TaskModel.java — Before → After
 
 ````md magic-move
 ```java
@@ -35,7 +35,7 @@ You write Java. Hibernate writes SQL.
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Task {
+public class TaskModel {
     private Long id;
     private String title;
     private String description;
@@ -53,7 +53,7 @@ public class Task {
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -105,7 +105,7 @@ private LocalDateTime createdAt;
 
 <v-clicks>
 
-- `LocalDateTime.now()` runs when `new Task()` is called in Java
+- `LocalDateTime.now()` runs when `new TaskModel()` is called in Java
 - `@CreationTimestamp` runs when Hibernate executes the INSERT statement
 - With JPA, the database timestamp is more reliable (consistent across app servers)
 - Remove the field initializer — `@CreationTimestamp` sets it for you
@@ -129,7 +129,7 @@ For JPA entities, use `@EqualsAndHashCode(onlyExplicitlyIncluded = true)` and ma
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Task {
+public class TaskModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -197,7 +197,7 @@ Hibernate:
 zoom: 0.7
 ---
 
-# Full Task.java After Migration
+# Full TaskModel.java After Migration
 
 ```java
 package com.chetraseng.sunrise_task_flow_api.model;
@@ -214,7 +214,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -229,7 +229,7 @@ public class Task {
 
     @ManyToOne
     @JoinColumn(name = "project_id")
-    private Project project;
+    private ProjectModel project;
 }
 ```
 

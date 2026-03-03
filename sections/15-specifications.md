@@ -34,9 +34,9 @@ findByCompletedAndTitleContainingAndProjectId(boolean completed, String keyword,
 A **Specification** is a reusable, composable piece of a `WHERE` clause.
 
 ```java
-Specification<Task> isComplete   = (root, query, cb) -> cb.isTrue(root.get("completed"));
-Specification<Task> hasKeyword   = (root, query, cb) -> cb.like(root.get("title"), "%spring%");
-Specification<Task> inProject    = (root, query, cb) -> cb.equal(root.get("project").get("id"), 1L);
+Specification<TaskModel> isComplete   = (root, query, cb) -> cb.isTrue(root.get("completed"));
+Specification<TaskModel> hasKeyword   = (root, query, cb) -> cb.like(root.get("title"), "%spring%");
+Specification<TaskModel> inProject    = (root, query, cb) -> cb.equal(root.get("project").get("id"), 1L);
 
 // Combine at runtime:
 taskRepository.findAll(isComplete.and(hasKeyword).and(inProject));
@@ -57,14 +57,14 @@ Add `JpaSpecificationExecutor` to `TaskRepository`:
 
 ```java
 public interface TaskRepository
-        extends JpaRepository<Task, Long>,
-                JpaSpecificationExecutor<Task> {    // ← add this
+        extends JpaRepository<TaskModel, Long>,
+                JpaSpecificationExecutor<TaskModel> {    // ← add this
 
-    List<Task> findByCompleted(boolean completed);
+    List<TaskModel> findByCompleted(boolean completed);
 }
 ```
 
-This gives you `findAll(Specification<Task> spec)` for free.
+This gives you `findAll(Specification<TaskModel> spec)` for free.
 
 ---
 zoom: 0.75
@@ -87,16 +87,16 @@ Put your specifications in a static factory class:
 ```java
 public class TaskSpecs {
 
-    public static Specification<Task> isCompleted(boolean completed) {
+    public static Specification<TaskModel> isCompleted(boolean completed) {
         return (root, query, cb) -> cb.equal(root.get("completed"), completed);
     }
 
-    public static Specification<Task> titleContains(String keyword) {
+    public static Specification<TaskModel> titleContains(String keyword) {
         return (root, query, cb) ->
             cb.like(cb.lower(root.get("title")), "%" + keyword.toLowerCase() + "%");
     }
 
-    public static Specification<Task> inProject(Long projectId) {
+    public static Specification<TaskModel> inProject(Long projectId) {
         return (root, query, cb) -> cb.equal(root.get("project").get("id"), projectId);
     }
 }
@@ -112,11 +112,11 @@ Combine with `.and()`, `.or()`, `.not()`:
 import static com.chetraseng.sunrise_task_flow_api.spec.TaskSpecs.*;
 
 // All three filters applied:
-Specification<Task> spec = isCompleted(true)
+Specification<TaskModel> spec = isCompleted(true)
     .and(titleContains("spring"))
     .and(inProject(1L));
 
-List<Task> results = taskRepository.findAll(spec);
+List<TaskModel> results = taskRepository.findAll(spec);
 ```
 
 ```sql
@@ -133,7 +133,7 @@ Build the specification dynamically based on which params are present:
 
 ```java
 public List<TaskResponse> search(Boolean completed, String keyword, Long projectId) {
-    Specification<Task> spec = Specification.where(null);
+    Specification<TaskModel> spec = Specification.where(null);
 
     if (completed != null) spec = spec.and(isCompleted(completed));
     if (keyword   != null) spec = spec.and(titleContains(keyword));
@@ -154,7 +154,7 @@ Each filter is only applied when the parameter is actually provided. No `null` c
 `Specification.where(null)` is a no-op — it matches everything.
 
 ```java
-Specification<Task> spec = Specification.where(null);
+Specification<TaskModel> spec = Specification.where(null);
 // → no WHERE clause yet
 
 spec = spec.and(isCompleted(true));

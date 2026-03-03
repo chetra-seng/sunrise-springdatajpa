@@ -23,7 +23,7 @@ layout: center
 
 ```java
 // SQL:   SELECT * FROM tasks WHERE completed = true
-// JPQL:  SELECT t FROM Task t WHERE t.completed = true
+// JPQL:  SELECT t FROM TaskModel t WHERE t.completed = true
 //                   ^^^^                ^^^^
 //              Java class name      Java field name
 ```
@@ -35,10 +35,10 @@ JPQL is database-agnostic — Hibernate translates it to the right SQL dialect f
 # @Query — Basic JPQL
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
 
-    @Query("SELECT t FROM Task t WHERE t.completed = false ORDER BY t.createdAt DESC")
-    List<Task> findAllIncompleteOrderedByDate();
+    @Query("SELECT t FROM TaskModel t WHERE t.completed = false ORDER BY t.createdAt DESC")
+    List<TaskModel> findAllIncompleteOrderedByDate();
 
 }
 ```
@@ -60,8 +60,8 @@ ORDER BY t.created_at DESC
 # @Param — Named Parameters
 
 ```java
-@Query("SELECT t FROM Task t WHERE t.title LIKE %:keyword% AND t.completed = :completed")
-List<Task> search(@Param("keyword") String keyword,
+@Query("SELECT t FROM TaskModel t WHERE t.title LIKE %:keyword% AND t.completed = :completed")
+List<TaskModel> search(@Param("keyword") String keyword,
                   @Param("completed") boolean completed);
 ```
 
@@ -85,8 +85,8 @@ taskRepository.search("spring", false);
 JPQL can join across entities using the Java field name, not the column name:
 
 ```java
-@Query("SELECT t FROM Task t JOIN t.project p WHERE p.name = :projectName")
-List<Task> findByProjectName(@Param("projectName") String projectName);
+@Query("SELECT t FROM TaskModel t JOIN t.project p WHERE p.name = :projectName")
+List<TaskModel> findByProjectName(@Param("projectName") String projectName);
 ```
 
 ```sql
@@ -109,12 +109,12 @@ When you need raw SQL — PostgreSQL-specific functions, complex subqueries, or 
     value = "SELECT * FROM tasks WHERE title ILIKE %:keyword%",
     nativeQuery = true
 )
-List<Task> searchNative(@Param("keyword") String keyword);
+List<TaskModel> searchNative(@Param("keyword") String keyword);
 ```
 
 - `nativeQuery = true` → runs the SQL directly without JPQL translation
 - `ILIKE` is PostgreSQL-specific case-insensitive LIKE — not available in JPQL
-- Returns mapped to `Task` entity automatically
+- Returns mapped to `TaskModel` entity automatically
 
 ---
 
@@ -150,7 +150,7 @@ int markComplete(@Param("id") Long id);
 ```java
 @Modifying
 @Transactional
-@Query("DELETE FROM Task t WHERE t.completed = true")
+@Query("DELETE FROM TaskModel t WHERE t.completed = true")
 int deleteAllCompleted();
 ```
 
@@ -168,15 +168,15 @@ Returns `int` — the number of rows affected.
 
 ```java
 // ✅ Derived — simple, readable, no SQL needed
-List<Task> findByCompleted(boolean completed);
+List<TaskModel> findByCompleted(boolean completed);
 
 // ✅ @Query JPQL — complex logic, stays DB-agnostic
-@Query("SELECT t FROM Task t WHERE t.title LIKE %:kw% AND t.completed = false")
-List<Task> search(@Param("kw") String keyword);
+@Query("SELECT t FROM TaskModel t WHERE t.title LIKE %:kw% AND t.completed = false")
+List<TaskModel> search(@Param("kw") String keyword);
 
 // ✅ Native — DB-specific features, raw performance control
 @Query(value = "SELECT * FROM tasks WHERE title ILIKE %:kw%", nativeQuery = true)
-List<Task> searchNative(@Param("kw") String keyword);
+List<TaskModel> searchNative(@Param("kw") String keyword);
 ```
 
 Start with derived methods. Move to `@Query` when the method name becomes unreadable. Use native only when JPQL can't express what you need.

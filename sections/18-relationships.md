@@ -87,7 +87,7 @@ layout: center
 zoom: 0.85
 ---
 
-# Create Project.java
+# Create ProjectModel.java
 
 ```java
 package com.chetraseng.sunrise_task_flow_api.model;
@@ -104,7 +104,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Project {
+public class ProjectModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -117,7 +117,7 @@ public class Project {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-    private List<Task> tasks;
+    private List<TaskModel> tasks;
 }
 ```
 
@@ -127,7 +127,7 @@ public class Project {
 
 ```java
 @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-private List<Task> tasks;
+private List<TaskModel> tasks;
 ```
 
 | Part | What It Means |
@@ -149,9 +149,9 @@ SELECT * FROM tasks WHERE project_id = ?
 zoom: 0.85
 ---
 
-# Update Task.java — Add the Project FK
+# Update TaskModel.java — Add the Project FK
 
-Add one field to `Task.java`:
+Add one field to `TaskModel.java`:
 
 ```java
 @Entity
@@ -160,7 +160,7 @@ Add one field to `Task.java`:
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -175,7 +175,7 @@ public class Task {
 
     @ManyToOne
     @JoinColumn(name = "project_id")
-    private Project project;
+    private ProjectModel project;
 }
 ```
 
@@ -186,7 +186,7 @@ public class Task {
 ```java
 @ManyToOne
 @JoinColumn(name = "project_id")
-private Project project;
+private ProjectModel project;
 ```
 
 | Annotation | SQL Equivalent |
@@ -212,14 +212,14 @@ ALTER TABLE tasks ADD CONSTRAINT fk_task_project
 Add to `TaskRepository`:
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
-    List<Task> findByCompleted(boolean completed);
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
+    List<TaskModel> findByCompleted(boolean completed);
 
     // Find all tasks for a project
-    List<Task> findByProject(Project project);
+    List<TaskModel> findByProject(ProjectModel project);
 
     // Or just use the project ID
-    List<Task> findByProjectId(Long projectId);
+    List<TaskModel> findByProjectId(Long projectId);
 }
 ```
 
@@ -240,7 +240,7 @@ layout: center
 zoom: 0.85
 ---
 
-# Create Comment.java
+# Create CommentModel.java
 
 ```java
 package com.chetraseng.sunrise_task_flow_api.model;
@@ -256,7 +256,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Comment {
+public class CommentModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -269,15 +269,15 @@ public class Comment {
 
     @ManyToOne
     @JoinColumn(name = "task_id")
-    private Task task;
+    private TaskModel task;
 }
 ```
 
 ---
 
-# Update Task.java — Add Comments
+# Update TaskModel.java — Add Comments
 
-Add the comments list to `Task.java`:
+Add the comments list to `TaskModel.java`:
 
 ```java
 @Entity
@@ -286,12 +286,12 @@ Add the comments list to `Task.java`:
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
 
     // ... existing fields ...
 
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Comment> comments;
+    private List<CommentModel> comments;
 }
 ```
 
@@ -313,13 +313,13 @@ DELETE FROM comments WHERE id = ? AND task_id = ?
 ```java
 package com.chetraseng.sunrise_task_flow_api.repository;
 
-import com.chetraseng.sunrise_task_flow_api.model.Comment;
+import com.chetraseng.sunrise_task_flow_api.model.CommentModel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
-public interface CommentRepository extends JpaRepository<Comment, Long> {
+public interface CommentRepository extends JpaRepository<CommentModel, Long> {
 
-    List<Comment> findByTaskId(Long taskId);
+    List<CommentModel> findByTaskId(Long taskId);
 
 }
 ```
@@ -339,7 +339,7 @@ layout: center
 
 ---
 
-# Create Tag.java
+# Create TagModel.java
 
 ```java
 package com.chetraseng.sunrise_task_flow_api.model;
@@ -353,7 +353,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Tag {
+public class TagModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -367,7 +367,7 @@ public class Tag {
 zoom: 0.85
 ---
 
-# Update Task.java — Add Tags
+# Update TaskModel.java — Add Tags
 
 ```java
 @Entity
@@ -376,7 +376,7 @@ zoom: 0.85
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
 
     // ... existing fields ...
 
@@ -386,7 +386,7 @@ public class Task {
         joinColumns = @JoinColumn(name = "task_id"),
         inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
-    private List<Tag> tags;
+    private List<TagModel> tags;
 }
 ```
 
@@ -403,7 +403,7 @@ zoom: 0.85
     joinColumns = @JoinColumn(name = "task_id"),
     inverseJoinColumns = @JoinColumn(name = "tag_id")
 )
-private List<Tag> tags;
+private List<TagModel> tags;
 ```
 
 | Part | What It Does |
@@ -432,12 +432,12 @@ CREATE TABLE task_tags (
 Add to `TaskRepository`:
 
 ```java
-public interface TaskRepository extends JpaRepository<Task, Long> {
-    List<Task> findByCompleted(boolean completed);
-    List<Task> findByProjectId(Long projectId);
+public interface TaskRepository extends JpaRepository<TaskModel, Long> {
+    List<TaskModel> findByCompleted(boolean completed);
+    List<TaskModel> findByProjectId(Long projectId);
 
     // Find all tasks with a specific tag name
-    List<Task> findByTagsName(String tagName);
+    List<TaskModel> findByTagsName(String tagName);
 }
 ```
 
@@ -450,10 +450,278 @@ WHERE tg.name = 'urgent'
 ```
 
 ---
+
+# Two Ways to Model Many-to-Many
+
+Both produce the same `task_tags` table. The difference is how much control you want in Java.
+
+<v-clicks>
+
+**Approach 1 — `@ManyToMany`:** Spring manages the join table for you. Less code. No extra columns.
+```sql
+CREATE TABLE task_tags (
+    task_id BIGINT REFERENCES tasks(id),
+    tag_id  BIGINT REFERENCES tags(id)
+);
+```
+
+**Approach 2 — Explicit join entity:** You own the join table as a real entity. More code. Full control.
+```sql
+CREATE TABLE task_tags (
+    id          BIGSERIAL PRIMARY KEY,
+    task_id     BIGINT REFERENCES tasks(id),
+    tag_id      BIGINT REFERENCES tags(id),
+    assigned_at TIMESTAMP DEFAULT NOW()   -- ← impossible with @ManyToMany
+);
+```
+
+</v-clicks>
+
+---
+zoom: 0.85
+---
+
+# Approach 1 — @ManyToMany: Adding a Tag
+
+```java
+// TaskModel.java:
+@ManyToMany
+@JoinTable(
+    name = "task_tags",
+    joinColumns = @JoinColumn(name = "task_id"),
+    inverseJoinColumns = @JoinColumn(name = "tag_id")
+)
+private List<TagModel> tags = new ArrayList<>();
+```
+
+```java
+// Service — add a tag:
+@Transactional
+public void addTag(Long taskId, Long tagId) {
+    TaskModel task = taskRepository.findById(taskId).orElseThrow();
+    TagModel  tag  = tagRepository.findById(tagId).orElseThrow();
+
+    task.getTags().add(tag);      // add to the list
+    taskRepository.save(task);    // JPA syncs the join table
+}
+```
+
+```sql
+-- JPA runs:
+INSERT INTO task_tags (task_id, tag_id) VALUES (1, 3);
+```
+
+---
+
+# Approach 1 — @ManyToMany: Removing and Querying
+
+```java
+// Remove a tag:
+@Transactional
+public void removeTag(Long taskId, Long tagId) {
+    TaskModel task = taskRepository.findById(taskId).orElseThrow();
+    task.getTags().removeIf(tag -> tag.getId().equals(tagId));
+    taskRepository.save(task);
+}
+```
+
+```sql
+DELETE FROM task_tags WHERE task_id = 1 AND tag_id = 3;
+```
+
+```java
+// Read — direct access to the list:
+List<TagModel> tags = task.getTags();
+```
+
+Direct and clean — but you can only see `id` and `name`. There's no way to know *when* or *by whom* the tag was added.
+
+---
+
+# Approach 1 — The Limitation
+
+```java
+// You want to know when each tag was assigned:
+task.getTags()
+// → [TagModel(id=1, name="urgent"), TagModel(id=3, name="backend")]
+// → no assignedAt, no extra context — just the Tag object
+```
+
+<v-click>
+
+`@ManyToMany` manages the join table as an invisible detail. You can't add columns to an invisible table.
+
+If you ever need **anything beyond the two foreign keys**, you need Approach 2.
+
+</v-click>
+
+---
+zoom: 0.85
+---
+
+# Approach 2 — Split Entity: TaskTagModel.java
+
+```java
+package com.chetraseng.sunrise_task_flow_api.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "task_tags")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class TaskTagModel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "task_id")
+    private TaskModel task;
+
+    @ManyToOne
+    @JoinColumn(name = "tag_id")
+    private TagModel tag;
+
+    @CreationTimestamp
+    private LocalDateTime assignedAt;  // ← now you own this column
+}
+```
+
+---
+
+# Approach 2 — Update TaskModel.java
+
+````md magic-move
+```java
+// Approach 1: @ManyToMany shortcut
+@ManyToMany
+@JoinTable(
+    name = "task_tags",
+    joinColumns = @JoinColumn(name = "task_id"),
+    inverseJoinColumns = @JoinColumn(name = "tag_id")
+)
+private List<TagModel> tags = new ArrayList<>();
+```
+
+```java
+// Approach 2: explicit join entity — you own the relationship
+@OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<TaskTagModel> taskTags = new ArrayList<>();
+```
+````
+
+The DB table is identical. In Java you now go through `TaskTagModel` instead of directly to `TagModel`.
+
+---
+zoom: 0.85
+---
+
+# Approach 2 — TaskTagRepository
+
+```java
+public interface TaskTagRepository extends JpaRepository<TaskTagModel, Long> {
+
+    List<TaskTagModel> findByTaskId(Long taskId);
+    List<TaskTagModel> findByTagId(Long tagId);
+
+    boolean existsByTaskIdAndTagId(Long taskId, Long tagId);
+
+    void deleteByTaskIdAndTagId(Long taskId, Long tagId);
+
+}
+```
+
+---
+zoom: 0.85
+---
+
+# Approach 2 — Adding and Removing a Tag
+
+```java
+// Add a tag:
+@Transactional
+public void addTag(Long taskId, Long tagId) {
+    TaskModel task = taskRepository.findById(taskId).orElseThrow();
+    TagModel  tag  = tagRepository.findById(tagId).orElseThrow();
+
+    TaskTagModel link = TaskTagModel.builder()
+        .task(task)
+        .tag(tag)
+        .build();  // assignedAt set by @CreationTimestamp
+
+    taskTagRepository.save(link);
+}
+```
+
+```java
+// Remove a tag:
+@Transactional
+public void removeTag(Long taskId, Long tagId) {
+    taskTagRepository.deleteByTaskIdAndTagId(taskId, tagId);
+}
+```
+
+```sql
+INSERT INTO task_tags (task_id, tag_id, assigned_at) VALUES (1, 3, NOW());
+DELETE FROM task_tags WHERE task_id = 1 AND tag_id = 3;
+```
+
+---
+
+# Approach 2 — Reading the Extra Data
+
+```java
+// All tags on a task — with metadata:
+List<TaskTagModel> links = taskTagRepository.findByTaskId(taskId);
+
+for (TaskTagModel link : links) {
+    System.out.println(link.getTag().getName());      // "urgent"
+    System.out.println(link.getAssignedAt());         // "2026-03-01T09:15:00"
+}
+```
+
+```java
+// Just the tag list (same as @ManyToMany result):
+List<TagModel> tags = links.stream()
+    .map(TaskTagModel::getTag)
+    .toList();
+```
+
+The extra step through `TaskTagModel` is the price you pay — in return, you get full access to every column on the relationship.
+
+---
+zoom: 0.85
+---
+
+# Which Approach to Choose?
+
+| | `@ManyToMany` | Explicit Join Entity |
+|-|---------------|----------------------|
+| Code amount | Less | More |
+| Extra columns on join | ❌ Not possible | ✅ Any columns you want |
+| Add a tag | `task.getTags().add(tag)` | `taskTagRepository.save(link)` |
+| Remove a tag | `task.getTags().remove(tag)` | `taskTagRepository.deleteBy...()` |
+| Read tags | `task.getTags()` | `.stream().map(::getTag)` |
+| Best for | Simple label/category tagging | Auditable, enriched relationships |
+
+<v-click>
+
+**Rule of thumb:** start with `@ManyToMany`. If you ever need to store *when*, *by whom*, or *any metadata* about the relationship — switch to the explicit join entity.
+
+</v-click>
+
+---
 zoom: 0.7
 ---
 
-# Full Task.java After All Relationships
+# Full TaskModel.java After All Relationships
 
 ```java
 @Entity
@@ -462,7 +730,7 @@ zoom: 0.7
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class TaskModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -477,16 +745,16 @@ public class Task {
 
     @ManyToOne
     @JoinColumn(name = "project_id")
-    private Project project;
+    private ProjectModel project;
 
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Comment> comments;
+    private List<CommentModel> comments;
 
     @ManyToMany
     @JoinTable(name = "task_tags",
         joinColumns = @JoinColumn(name = "task_id"),
         inverseJoinColumns = @JoinColumn(name = "tag_id"))
-    private List<Tag> tags;
+    private List<TagModel> tags;
 }
 ```
 
@@ -513,7 +781,7 @@ You wrote Java. Hibernate wrote SQL.
 By default, JPA uses **lazy loading** — it doesn't fetch related entities until you access them.
 
 ```java
-Task task = taskRepository.findById(1L).get();
+TaskModel task = taskRepository.findById(1L).get();
 // SQL: SELECT * FROM tasks WHERE id = 1
 
 task.getComments();  // ← triggers a second query HERE
